@@ -1,9 +1,9 @@
-import {parser} from "lezer-python";
-import {TreeCursor} from "lezer-tree";
-import {BinOp, Expr, Stmt} from "./ast";
+import { parser } from "lezer-python";
+import { TreeCursor } from "lezer-tree";
+import { BinOp, Expr, Stmt } from "./ast";
 
-export function traverseExpr(c : TreeCursor, s : string) : Expr {
-  switch(c.type.name) {
+export function traverseExpr(c: TreeCursor, s: string): Expr {
+  switch (c.type.name) {
     case "Number":
       return {
         tag: "num",
@@ -17,52 +17,72 @@ export function traverseExpr(c : TreeCursor, s : string) : Expr {
     case "CallExpression":
       c.firstChild();
       const callName = s.substring(c.from, c.to);
-      if(callName !== 'print' && callName !== 'abs')
-        throw new Error("Parse error: Unknown Call Name");
-        
       c.nextSibling(); // go to arglist
-      c.firstChild(); // go into arglist
-      c.nextSibling(); // find single argument in arglist
-      const arg = traverseExpr(c, s);
-      c.parent(); // pop arglist
+      const args = travesreArgs(c, s);
       c.parent(); // pop CallExpression
-      return {
-        tag: "builtin1",
-        name: callName,
-        arg: arg
-      };
+      if (args.length == 1) {
+        if (callName !== 'print' && callName !== 'abs')
+          throw new Error("Parse error: Unknown Call Name");
+        return {
+          tag: "builtin1",
+          name: callName,
+          arg: args[0]
+        };
+      }
+      else if (args.length == 2) {
+        if (callName !== 'max' && callName !== 'min' && callName !== 'pow')
+          throw new Error("Parse error: Unknown Call Name");
+        return {
+          tag: "builtin2",
+          name: callName,
+          arg1: args[0],
+          arg2: args[1]
+        };
+      }
+      throw new Error("Parse Error: Incorrect number of arguments");
 
     case "UnaryExpression":
       c.firstChild();
-      const uniop = s.substring(c.from,c.to);
-      if(uniop !== '+' && uniop !== '-')
+      const uniop = s.substring(c.from, c.to);
+      if (uniop !== '+' && uniop !== '-')
         throw new Error("Parse Error: Unknown unary operator");
-      
+
       c.parent();
-      const num = Number(s.substring(c.from,c.to))
-      if(isNaN(num))
+      const num = Number(s.substring(c.from, c.to))
+      if (isNaN(num))
         throw new Error("Parse Error: Unary operator failed");
-        
-      return {tag: "num", value: num}
+
+      return { tag: "num", value: num }
 
     case "BinaryExpression":
       c.firstChild();
-      const left = traverseExpr(c,s);
+      const left = traverseExpr(c, s);
       c.nextSibling();
-      var op = traverseBinOp(c,s);
+      var op = traverseBinOp(c, s);
 
       c.nextSibling()
-      const right = traverseExpr(c,s);
+      const right = traverseExpr(c, s);
       c.parent(); //pop 
-      return {tag: "binexpr", op: op, left:left, right:right}
+      return { tag: "binexpr", op: op, left: left, right: right }
 
     default:
       throw new Error("Could not parse expr at " + c.from + " " + c.to + ": " + s.substring(c.from, c.to));
   }
 }
 
-export function traverseBinOp(c: TreeCursor, s:string):BinOp {
-  switch(s.substring(c.from, c.to)){
+export function travesreArgs(c: TreeCursor, s: string): Array<Expr> {
+  var args: Array<Expr> = []
+  c.firstChild(); // go into arglist
+  while(c.nextSibling()){ // find single argument in arglist
+    args.push(traverseExpr(c, s));
+    c.nextSibling();
+  }
+  c.parent(); // pop arglist
+  return args;
+}
+
+export function traverseBinOp(c: TreeCursor, s: string): BinOp {
+  switch (s.substring(c.from, c.to)) {
     case "+":
       return BinOp.Add;
     case "-":
@@ -73,8 +93,8 @@ export function traverseBinOp(c: TreeCursor, s:string):BinOp {
   }
 }
 
-export function traverseStmt(c : TreeCursor, s : string) : Stmt {
-  switch(c.node.type.name) {
+export function traverseStmt(c: TreeCursor, s: string): Stmt {
+  switch (c.node.type.name) {
     case "AssignStatement":
       c.firstChild(); // go to name
       const name = s.substring(c.from, c.to);
@@ -97,21 +117,21 @@ export function traverseStmt(c : TreeCursor, s : string) : Stmt {
   }
 }
 
-export function traverse(c : TreeCursor, s : string) : Array<Stmt> {
-  switch(c.node.type.name) {
+export function traverse(c: TreeCursor, s: string): Array<Stmt> {
+  switch (c.node.type.name) {
     case "Script":
       const stmts = [];
       c.firstChild();
       do {
         stmts.push(traverseStmt(c, s));
-      } while(c.nextSibling())
-      console.log("traversed " + stmts.length + " statements ", stmts, "stopped at " , c.node);
+      } while (c.nextSibling())
+      console.log("traversed " + stmts.length + " statements ", stmts, "stopped at ", c.node);
       return stmts;
     default:
       throw new Error("Could not parse program at " + c.node.from + " " + c.node.to);
   }
 }
-export function parse(source : string) : Array<Stmt> {
+export function parse(source: string): Array<Stmt> {
   const t = parser.parse(source);
   return traverse(t.cursor(), source);
 }
