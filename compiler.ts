@@ -9,9 +9,11 @@ type CompileResult = {
   wasmSource: string,
 };
 
+const definedVars = new Set();
+
 export function compile(source: string) : CompileResult {
   const ast = parse(source);
-  const definedVars = new Set();
+  
   ast.forEach(s => {
     switch(s.tag) {
       case "define":
@@ -56,7 +58,10 @@ function codeGenExpr(expr : Expr) : Array<string> {
     case "num":
       return ["(i32.const " + expr.value + ")"];
     case "id":
-      return [`(local.get $${expr.name})`];
+      if(definedVars.has(expr.name))
+        return [`(local.get $${expr.name})`];
+      throw new Error(`ReferenceError: ${expr.name} not defined`);
+      
     case "binexpr":
       const leftexpr = codeGenExpr(expr.left);
       const rightexpr = codeGenExpr(expr.right);
