@@ -35,6 +35,7 @@ export async function run(source : string, config: any) : Promise<number> {
   const importObject = config.importObject;
   const wasmSource = `(module
     (func $print (import "imports" "print") (param i32) (result i32))
+    (func $abs (import "imports" "abs") (param i32) (result i32))
     (func (export "exported_func") ${returnType}
       ${compiled.wasmSource}
       ${returnExpr}

@@ -12,6 +12,7 @@ function webStart() {
           elt.innerText = arg;
           return arg;
         },
+        abs: Math.abs,
       },
     };
 

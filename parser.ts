@@ -1,6 +1,6 @@
 import {parser} from "lezer-python";
 import {TreeCursor} from "lezer-tree";
-import {Expr, Stmt} from "./ast";
+import {BinOp, Expr, Stmt} from "./ast";
 
 export function traverseExpr(c : TreeCursor, s : string) : Expr {
   switch(c.type.name) {
@@ -17,6 +17,9 @@ export function traverseExpr(c : TreeCursor, s : string) : Expr {
     case "CallExpression":
       c.firstChild();
       const callName = s.substring(c.from, c.to);
+      if(callName !== 'print' && callName !== 'abs')
+        throw new Error("Parse error: Unknown Call Name");
+        
       c.nextSibling(); // go to arglist
       c.firstChild(); // go into arglist
       c.nextSibling(); // find single argument in arglist
@@ -29,8 +32,44 @@ export function traverseExpr(c : TreeCursor, s : string) : Expr {
         arg: arg
       };
 
+    case "UnaryExpression":
+      c.firstChild();
+      const uniop = s.substring(c.from,c.to);
+      if(uniop !== '+' && uniop !== '-')
+        throw new Error("Parse Error: Unknown unary operator");
+      
+      c.parent();
+      const num = Number(s.substring(c.from,c.to))
+      if(isNaN(num))
+        throw new Error("Parse Error: Unary operator failed");
+        
+      return {tag: "num", value: num}
+
+    case "BinaryExpression":
+      c.firstChild();
+      const left = traverseExpr(c,s);
+      c.nextSibling();
+      var op = traverseBinOp(c,s);
+
+      c.nextSibling()
+      const right = traverseExpr(c,s);
+      c.parent(); //pop 
+      return {tag: "binexpr", op: op, left:left, right:right}
+
     default:
       throw new Error("Could not parse expr at " + c.from + " " + c.to + ": " + s.substring(c.from, c.to));
+  }
+}
+
+export function traverseBinOp(c: TreeCursor, s:string):BinOp {
+  switch(s.substring(c.from, c.to)){
+    case "+":
+      return BinOp.Add;
+    case "-":
+      return BinOp.Sub;
+    case "*":
+      return BinOp.Mul;
+    default: throw new Error("Parse ERROR: Unknown binary operator")
   }
 }
 

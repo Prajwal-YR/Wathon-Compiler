@@ -2,3 +2,5 @@ node_modules
 build
 cli
 *.sw*
+.vscode
+dist
