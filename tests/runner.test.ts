@@ -42,6 +42,17 @@ describe('run(source, config) function', () => {
     expect(result).to.equal(987);
   });
 
+  it('returns the right number (signed)', async () => {
+    const result = await run("-987", config);
+    expect(result).to.equal(-987);
+  });
+
+  it('returns the right number (signed)', async () => {
+    const result = await run("+987", config);
+    expect(result).to.equal(987);
+  });
+
+  
   // 2- we can test the behavior of the compiler by also looking at the log 
   // resulting from running the program
   it('prints something right', async() => {
@@ -78,6 +89,11 @@ describe('run(source, config) function', () => {
     expect(result).to.equal(6);
   });
 
+  it('Expression evaluation', async() => {
+    const result = await run("2+3*5-2", config);
+    expect(result).to.equal(2+3*5-2);
+  });
+
   it('abs', async() => {
     const result1 = await run("abs(987)", config);
     const result2 = await run("abs(-987)", config);
@@ -99,11 +115,27 @@ describe('run(source, config) function', () => {
     const result = await run("pow(2,3)", config);
     expect(result).to.equal(8);
   });
+  it('Assigning expression', async() => {
+    const result = await run("x=2+3*5-2\nx", config);
+    expect(result).to.equal(2+3*5-2);
+  });
 
-  it('referencing before assignment', async() => {
+  it('referencing before assignment should fail', async() => {
     let error = null;
     try {
-      await run("x+2",config)
+      await run("y+2",config)
+    }
+    catch (err) {
+      error = err
+    }
+    expect(error).to.be.an('Error')
+    expect(error.message).to.contain('ReferenceError')
+
+  });
+  it('referencing before assignment should fail 2', async() => {
+    let error = null;
+    try {
+      await run("y=z",config)
     }
     catch (err) {
       error = err

@@ -82,6 +82,16 @@ describe('parse(source) function', () => {
 
   // TODO: add additional tests here to ensure parse works as expected
 
+  it('parse a negative number', () => {
+    const parsed = parse("-987");
+    expect(parsed).to.deep.equal([{ tag: "expr", expr: { tag: "num", value: -987 } }]);
+  });
+
+  it('parse a positive number', () => {
+    const parsed = parse("+987");
+    expect(parsed).to.deep.equal([{ tag: "expr", expr: { tag: "num", value: 987 } }]);
+  });
+
   it('parse 2+3', () => {
     const parsed = parse("2+3");
     const left = {tag:"num", value:2}
@@ -142,9 +152,36 @@ describe('parse(source) function', () => {
     expect(parse.bind(null,"abs(987,989)")).to.throw('ParseError')
     done()
   });
+  
   it('parse max(987) should fail', function(done) {
     expect(parse.bind(null,"max(987)")).to.throw('ParseError')
     done()
+  });
+
+  it('parse max(987,988,989) should fail', function(done) {
+    expect(parse.bind(null,"max(987,988,989)")).to.throw('ParseError')
+    done()
+  });
+  
+  it('parse min(987) should fail', function(done) {
+    expect(parse.bind(null,"min(987)")).to.throw('ParseError')
+    done()
+  });
+  it('parse min(987,988,989) should fail', function(done) {
+    expect(parse.bind(null,"min(987,988,989)")).to.throw('ParseError')
+    done()
   }); 
+
+  it('parse pow(9) should fail', function(done) {
+    expect(parse.bind(null,"pow(9)")).to.throw('ParseError')
+    done()
+  });
+
+  it('parse sqrt(987) should fail', function(done) {
+    expect(parse.bind(null,"sqrt(987)")).to.throw('ParseError')
+    done()
+  });
+
+
 });
 
