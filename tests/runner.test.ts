@@ -13,6 +13,10 @@ const importObject = {
       importObject.output += "\n";
       return arg;
     },
+    abs: Math.abs,
+    max: Math.max,
+    min: Math.min,
+    pow: Math.pow,
   },
 
   output: ""
@@ -64,4 +68,48 @@ describe('run(source, config) function', () => {
   });
 
   // TODO: add additional tests here to ensure the compiler runs as expected
+  it('subtracts two numbers', async() => {
+    const result = await run("2 - 3", config);
+    expect(result).to.equal(-1);
+  });
+
+  it('multiplies two numbers', async() => {
+    const result = await run("2 * 3", config);
+    expect(result).to.equal(6);
+  });
+
+  it('abs', async() => {
+    const result1 = await run("abs(987)", config);
+    const result2 = await run("abs(-987)", config);
+    expect(result1).to.equal(987);
+    expect(result2).to.equal(987);
+  });
+
+  it('max', async() => {
+    const result = await run("max(987,989)", config);
+    expect(result).to.equal(989);
+  });
+
+  it('min', async() => {
+    const result = await run("min(987,989)", config);
+    expect(result).to.equal(987);
+  });
+
+  it('pow', async() => {
+    const result = await run("pow(2,3)", config);
+    expect(result).to.equal(8);
+  });
+
+  it('referencing before assignment', async() => {
+    let error = null;
+    try {
+      await run("x+2",config)
+    }
+    catch (err) {
+      error = err
+    }
+    expect(error).to.be.an('Error')
+    expect(error.message).to.contain('ReferenceError')
+
+  });
 });
