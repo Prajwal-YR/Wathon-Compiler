@@ -1,4 +1,4 @@
-import { BinOp, Expr, FunDef, Literal, Program, Stmt, Type, TypedVar, VarDef } from "./ast";
+import { BinOp, Expr, FunDef, Literal, Program, Stmt, Type, TypedVar, UniOp, VarDef } from "./ast";
 
 export type TypeEnv = {
   vars: Map<string, Type>,
@@ -33,6 +33,9 @@ export function typeCheckVarInits(inits: VarDef<null>[], env: TypeEnv): VarDef<T
 }
 
 function typeCheckFunDef(fundef: FunDef<null>, env: TypeEnv): FunDef<Type> {
+  
+  // add func to env
+  env.funcs.set(fundef.name, [fundef.params.map(param => param.type), fundef.ret])
   // add params to env
   const localEnv: TypeEnv = { ...env, vars: new Map(env.vars), funcs: new Map(env.funcs) };
   fundef.params.forEach(param => {
@@ -47,9 +50,7 @@ function typeCheckFunDef(fundef: FunDef<null>, env: TypeEnv): FunDef<Type> {
   //   localEnv.vars.set(init.name,init.type);
   // });
 
-  // add func to env
-  env.funcs.set(fundef.name, [fundef.params.map(param => param.type), fundef.ret])
-
+  
   localEnv.retType = fundef.ret;
   // check body
   const typedStmts = typeCheckStmts(fundef.body, localEnv)
@@ -140,9 +141,22 @@ export function typeCheckExpr(expr: Expr<null>, env: TypeEnv): Expr<Type> {
         throw new Error(`TypeError: Cannot apply builtin2 \`${expr.name}\` on types \`${arg1.a}\` and \`${arg2.a}\``)
       }
       return { ...expr, arg1, arg2, a: Type.int }
+    case "uniexpr":
+      var right = typeCheckExpr(expr.right, env);
+      switch (expr.op) {
+        case UniOp.Not:
+          if(right.a!==Type.bool)
+            throw new Error(`TypeError: Cannot apply operator \`${expr.op}\` on type \`${right.a}\``)
+          break;
+        case UniOp.Neg:
+          if(right.a!==Type.int)
+            throw new Error(`TypeError: Cannot apply operator \`${expr.op}\` on type \`${right.a}\``)
+          break;
+      }
+      return {...expr, right, a:right.a};
     case "binexpr":
       const left = typeCheckExpr(expr.left, env);
-      const right = typeCheckExpr(expr.right, env);
+      var right = typeCheckExpr(expr.right, env);
       switch (expr.op) {
         case BinOp.Add:
         case BinOp.Sub:

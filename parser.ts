@@ -1,6 +1,6 @@
 import { parser } from "lezer-python";
 import { TreeCursor } from "lezer-tree";
-import { BinOp, Expr, Stmt, Literal, Type, TypedVar, FunDef, VarDef, Program } from "./ast";
+import { BinOp, Expr, Stmt, Literal, Type, TypedVar, FunDef, VarDef, Program, UniOp } from "./ast";
 
 function traverseLiteral(c: TreeCursor, s: string): Literal<null> {
   switch (c.type.name) {
@@ -165,16 +165,22 @@ export function traverseExpr(c: TreeCursor, s: string): Expr<null> {
 
     case "UnaryExpression":
       c.firstChild();
-      const uniop = s.substring(c.from, c.to);
-      if (uniop !== '+' && uniop !== '-')
-        throw new Error("ParseError: Unknown unary operator");
-
+      var uniop: UniOp;
+      switch(s.substring(c.from, c.to)){
+        case "not":
+          uniop = UniOp.Not;
+          break;
+        case "-":
+          uniop = UniOp.Neg;
+          break;
+        default:
+          throw new Error("ParseError: Unknown unary operator");
+      }
+      c.nextSibling();
+      var right = traverseExpr(c,s)
       c.parent();
-      const value = Number(s.substring(c.from, c.to))
-      if (isNaN(value))
-        throw new Error("ParseError: Unary operator failed");
-
-      return { tag: "literal", literal: { tag: "num", value } }
+      
+      return { tag: "uniexpr", op:uniop, right };
 
     case "BinaryExpression":
       c.firstChild();
@@ -183,7 +189,7 @@ export function traverseExpr(c: TreeCursor, s: string): Expr<null> {
       var op = traverseBinOp(c, s);
 
       c.nextSibling()
-      const right = traverseExpr(c, s);
+      var right = traverseExpr(c, s);
       c.parent(); //pop 
       return { tag: "binexpr", op: op, left: left, right: right }
 

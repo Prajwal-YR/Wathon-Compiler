@@ -1,4 +1,4 @@
-import { Stmt, Expr, BinOp, Type, FunDef, Literal } from "./ast";
+import { Stmt, Expr, BinOp, Type, FunDef, Literal, UniOp } from "./ast";
 import { parse } from "./parser";
 import { typeCheckProgram, TypeEnv } from "./typecheck";
 
@@ -155,9 +155,18 @@ function codeGenExpr(expr: Expr<Type>, localEnv:TypeEnv): Array<string> {
 
     case "binexpr":
       const leftexpr = codeGenExpr(expr.left, localEnv);
-      const rightexpr = codeGenExpr(expr.right, localEnv);
-      const op = codeGenBinOp(expr.op);
+      var rightexpr = codeGenExpr(expr.right, localEnv);
+      var op = codeGenBinOp(expr.op);
       return [...leftexpr, ...rightexpr, op];
+
+    case "uniexpr":
+      var rightexpr = codeGenExpr(expr.right, localEnv);
+      switch(expr.op){
+        case UniOp.Neg:
+          return ["(i32.const 0)",...rightexpr,"(i32.sub)"]
+        case UniOp.Not:
+          return ["(i32.const 1)",...rightexpr,"(i32.xor)"]
+      }
 
     case "call":
       const argsStmts = expr.args.map((arg)=>codeGenExpr(arg,localEnv)).flat();
@@ -165,6 +174,8 @@ function codeGenExpr(expr: Expr<Type>, localEnv:TypeEnv): Array<string> {
 
   }
 }
+
+
 
 function codeGenBinOp(op: BinOp): string {
   switch (op) {
