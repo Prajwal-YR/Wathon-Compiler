@@ -12,6 +12,7 @@ type CompileResult = {
 };
 
 // const definedVars = new Set();
+var labelCounter = 0;
 
 export function compile(source: string): CompileResult {
   const ast = parse(source);
@@ -79,13 +80,30 @@ function codeGenStmt(stmt: Stmt<Type>, localEnv:TypeEnv): Array<string> {
       return ['nop'];
     case "if":
       var condStmts = codeGenExpr(stmt.cond, localEnv);
-      const bodyStmts = stmt.body.map(s => codeGenStmt(s,localEnv)).flat();
+      var bodyStmts = stmt.body.map(s => codeGenStmt(s,localEnv)).flat();
       if(stmt.elseBody.length == 0)
         return[...condStmts,
           `(if
             (then`,...bodyStmts,`)`,`)`];
       const elseBodyStmts = stmt.elseBody.map(s=>codeGenStmt(s,localEnv)).flat()
       return[...condStmts,`(if`,`(then`,...bodyStmts,`)`,`(else`,...elseBodyStmts,`)`,`)`];
+    case "while":
+      var label = labelCounter;
+      labelCounter++;
+      var condStmts = codeGenExpr(stmt.cond, localEnv);
+      var bodyStmts = stmt.body.map(s => codeGenStmt(s,localEnv)).flat();
+      return [`(block $block_${label}`,
+      `(loop $loop_${label}`,
+      ...condStmts,
+      `i32.const 1`,
+      `i32.xor`,
+      `br_if $block_${label}`,
+      ...bodyStmts,
+      `br $loop_${label}`,
+      `)`,
+      `)`
+    ];
+      
   }
 }
 

@@ -308,7 +308,7 @@ function traverseIf(c: TreeCursor, s: string): Stmt<null> {
     }
     body.push(traverseStmt(c, s));
   }
-  c.parent();
+  c.parent();// pop if body
   var stmt:Stmt<null> = {tag:"if", cond, body, elseBody:new Array<Stmt<null>>()}
   var elif = {}
   var out = c.nextSibling()
@@ -324,7 +324,7 @@ function traverseIf(c: TreeCursor, s: string): Stmt<null> {
       }
       body.push(traverseStmt(c, s));
     }
-    c.parent();
+    c.parent(); // pop elif body
     stmt.elseBody.push({tag:"if", cond,body,elseBody:new Array<Stmt<null>>()});
   }
   out = c.nextSibling();
@@ -338,13 +338,14 @@ function traverseIf(c: TreeCursor, s: string): Stmt<null> {
       }
       elseBody.push(traverseStmt(c, s));
     }
-    c.parent();
+    c.parent(); //pop else body
     if(stmt.elseBody.length == 0)
       stmt.elseBody = elseBody;
     else
     // @ts-ignore
       stmt.elseBody[0].elseBody = elseBody;
   }
+  c.parent();
   return stmt;
   
 }
@@ -378,23 +379,23 @@ export function traverseStmt(c: TreeCursor, s: string): Stmt<null> {
     case "PassStatement":
       return { tag: "pass" }
     case "IfStatement":
-      // c.firstChild(); //go to if
-      // c.nextSibling(); //go to condition
-      // const cond = traverseExpr(c, s);
-      // c.nextSibling(); //go to body
-      // c.firstChild(); //step into body
-      // const body: Stmt<null>[] = []
-      // while (c.nextSibling()) {
-      //   if (isVarDef(c, s) || isFunDef(c, s)) {
-      //     throw new Error("ParseError: Variable and function definitions not allowed here");
-      //   }
-      //   body.push(traverseStmt(c, s));
-      // }
-      // c.parent();
-      // c.parent();
-      // return { tag: "if", cond, body };
       return traverseIf(c,s);
-
+    case "WhileStatement":
+      c.firstChild();// go to while
+      c.nextSibling(); // go to condn
+      const cond = traverseExpr(c,s);
+      c.nextSibling(); //go to body
+      c.firstChild(); //go to :
+      const body:Stmt<null>[] = []
+      while(c.nextSibling()){
+        if (isVarDef(c, s) || isFunDef(c, s)) {
+          throw new Error("ParseError: Variable and function definitions not allowed here");
+      }
+        body.push(traverseStmt(c,s));
+      }
+      c.parent();// Pop body
+      c.parent();// Pop while
+      return {tag:"while", cond, body}
     default:
       throw new Error("ParseError: Could not parse stmt at " + c.node.from + " " + c.node.to + ": " + s.substring(c.from, c.to));
   }

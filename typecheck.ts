@@ -102,6 +102,16 @@ export function typeCheckStmts(stmts: Stmt<null>[], env: TypeEnv): Stmt<Type>[] 
           elseBody:typedElseBody,
           a: Type.none });
         break;
+      case "while":
+        const typedWhileCond = typeCheckExpr(stmt.cond, env);
+        if (typedWhileCond.a !== Type.bool)
+          throw new Error(`TypeError: Condition expression cannot be of type \`${typedWhileCond.a}\``);
+        const typedWhileBody = typeCheckStmts(stmt.body, env);
+        typedStmts.push({ ...stmt, 
+          cond: typedWhileCond, 
+          body: typedWhileBody, 
+          a: Type.none });
+        break;
       case "expr":
         const typedExpr = typeCheckExpr(stmt.expr, env);
         typedStmts.push({ ...stmt, expr: typedExpr, a: Type.none });

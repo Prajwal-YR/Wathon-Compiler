@@ -25,13 +25,16 @@ function stringifyTree(t:TreeCursor, source: string, d:number){
 }
 var source = 
 `
-if(None is None):
-    print(True)
-elif True:
-    print(True)
-else:
-    print(False)
-
+x:int = 3
+if True:
+    print(x)
+while x>0:
+    y:int = 1
+    while y>0:
+        y = y-1
+        print(True)
+    x = x-1
+    print(x)
 `
 var ast_lezer = parser.parse(source);
 console.log(stringifyTree(ast_lezer.cursor(),source,0));
@@ -43,3 +46,5 @@ console.log(JSON.stringify(typedAst,null,2))
 
 var compiled = compile(source)
 console.log(JSON.stringify(compiled,null,2))
+
+

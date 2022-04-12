@@ -27,6 +27,7 @@ export type Stmt<A> =
   | { a?: A, tag: "return", ret: Expr<A> }
   | { a?: A, tag: "pass" }
   | { a?: A, tag: "if", cond: Expr<A>, body: Stmt<A>[], elseBody: Stmt<A>[] }
+  | { a?: A, tag: "while", cond: Expr<A>, body: Stmt<A>[] }
   | { a?: A, tag: "expr", expr: Expr<A> }
 
 export type Expr<A> =
@@ -34,6 +35,7 @@ export type Expr<A> =
   | { a?: A, tag: "builtin1", name: string, arg: Expr<A> }
   | { a?: A, tag: "builtin2", name: string, arg1: Expr<A>, arg2: Expr<A> }
   | { a?: A, tag: "binexpr", op: BinOp, left: Expr<A>, right: Expr<A> }
+  | { a?: A, tag: "uniexpr", op: UniOp, right: Expr<A> }
   | { a?: A, tag: "literal", literal: Literal<A> }
   | { a?: A, tag: "call", name: string, args: Expr<A>[] }
 
