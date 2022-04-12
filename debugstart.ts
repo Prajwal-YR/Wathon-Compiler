@@ -9,7 +9,7 @@ function stringifyTree(t:TreeCursor, source: string, d:number){
     var str = "";
     var spaces = " ".repeat(d*2);
     str += spaces + t.type.name;
-    if(["Number","CallExpression","BinaryExpression","UnaryExpression"].includes(t.type.name)){
+    if(["Number","CallExpression","BinaryExpression","UnaryExpression","Boolean"].includes(t.type.name)){
         str += "-->" + source.substring(t.from, t.to); 
     }
     str += "\n";
@@ -25,14 +25,13 @@ function stringifyTree(t:TreeCursor, source: string, d:number){
 }
 var source = 
 `
-x:int = 2
-def myfunc():
-    print(x)
-def func()->int:
-    print(x)
-    return x
+if(None is None):
+    print(True)
+elif True:
+    print(True)
+else:
+    print(False)
 
-x
 `
 var ast_lezer = parser.parse(source);
 console.log(stringifyTree(ast_lezer.cursor(),source,0));

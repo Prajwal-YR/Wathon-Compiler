@@ -187,6 +187,13 @@ export function traverseExpr(c: TreeCursor, s: string): Expr<null> {
       c.parent(); //pop 
       return { tag: "binexpr", op: op, left: left, right: right }
 
+    case "ParenthesizedExpression":
+      c.firstChild();
+      c.nextSibling();
+      const exp = traverseExpr(c, s);
+      c.parent();
+      return exp;
+
     default:
       throw new Error("ParseError: Could not parse expr at " + c.from + " " + c.to + ": " + s.substring(c.from, c.to));
   }
@@ -217,8 +224,129 @@ export function traverseBinOp(c: TreeCursor, s: string): BinOp {
       return BinOp.Div;
     case "%":
       return BinOp.Mod;
+    case "<":
+      return BinOp.Lesser;
+    case "<=":
+      return BinOp.LessEq;
+    case ">":
+      return BinOp.Greater;
+    case ">=":
+      return BinOp.GreatEq;
+    case "==":
+      return BinOp.Equals;
+    case "!=":
+      return BinOp.NotEquals;
+    case "is":
+      return BinOp.Is;
     default: throw new Error("ParseError: Unknown binary operator")
   }
+}
+function set(obj: any, path: string, value: any) {
+  var schema = obj; 
+  var pList = path.split('.');
+  var len = pList.length;
+  for(var i = 0; i < len-1; i++) {
+      var elem = pList[i];
+      if( !schema[elem] ) schema[elem] = {}
+      schema = schema[elem];
+  }
+  schema[pList[len-1]] = value;
+}
+// function traverseIf(c: TreeCursor, s: string): Stmt<null> {
+//   c.firstChild(); //go to if
+//   var stmt:any = {};
+//   var pointer:any = "";
+//   do{
+//     if (c.type.name.endsWith('if')) {
+//       c.nextSibling();
+//       const cond = traverseExpr(c, s);
+//       c.nextSibling(); //go to body
+//       c.firstChild(); //step into body
+//       const body: Stmt<null>[] = []
+//       while (c.nextSibling()) {
+//         if (isVarDef(c, s) || isFunDef(c, s)) {
+//           throw new Error("ParseError: Variable and function definitions not allowed here");
+//         }
+//         body.push(traverseStmt(c, s));
+//       }
+//       c.parent();
+//       const val = [{tag:"if", cond, body,elseBody:new Array()}]
+//       if ("elseBody" in stmt) {
+//         stmt[pointer] = val;
+
+//       }
+//       else stmt = val;
+//       pointer = pointer['elseBody'];
+//     } else {
+//       c.nextSibling();
+//       c.firstChild(); //step into body
+//       const body: Stmt<null>[] = []
+//       while (c.nextSibling()) {
+//         if (isVarDef(c, s) || isFunDef(c, s)) {
+//           throw new Error("ParseError: Variable and function definitions not allowed here");
+//         }
+//         body.push(traverseStmt(c, s));
+//       }
+//       c.parent();
+//       pointer = body;
+//     }
+//   }while (c.nextSibling());
+//   console.log(JSON.stringify(stmt,null,2));
+//   return stmt;
+// }
+
+function traverseIf(c: TreeCursor, s: string): Stmt<null> {
+  c.firstChild(); //go to if
+  c.nextSibling(); //go to condition
+  const cond = traverseExpr(c, s);
+  c.nextSibling(); //go to body
+  c.firstChild(); //step into body
+  const body: Stmt<null>[] = []
+  while (c.nextSibling()) {
+    if (isVarDef(c, s) || isFunDef(c, s)) {
+      throw new Error("ParseError: Variable and function definitions not allowed here");
+    }
+    body.push(traverseStmt(c, s));
+  }
+  c.parent();
+  var stmt:Stmt<null> = {tag:"if", cond, body, elseBody:new Array<Stmt<null>>()}
+  var elif = {}
+  var out = c.nextSibling()
+  if (out && c.type.name === 'elif') {
+    c.nextSibling(); //go to condition
+    const cond = traverseExpr(c, s);
+    c.nextSibling(); //go to body
+    c.firstChild(); //step into body
+    const body: Stmt<null>[] = []
+    while (c.nextSibling()) {
+      if (isVarDef(c, s) || isFunDef(c, s)) {
+        throw new Error("ParseError: Variable and function definitions not allowed here");
+      }
+      body.push(traverseStmt(c, s));
+    }
+    c.parent();
+    stmt.elseBody.push({tag:"if", cond,body,elseBody:new Array<Stmt<null>>()});
+  }
+  out = c.nextSibling();
+  if (out && c.type.name === 'else') {
+    c.nextSibling(); //go to body
+    c.firstChild(); //step into body
+    const elseBody: Stmt<null>[] = []
+    while (c.nextSibling()) {
+      if (isVarDef(c, s) || isFunDef(c, s)) {
+        throw new Error("ParseError: Variable and function definitions not allowed here");
+      }
+      elseBody.push(traverseStmt(c, s));
+    }
+    c.parent();
+    if(stmt.elseBody.length == 0)
+      stmt.elseBody = elseBody;
+    else
+    // @ts-ignore
+      stmt.elseBody[0].elseBody = elseBody;
+  }
+  return stmt;
+  
 }
 
 export function traverseStmt(c: TreeCursor, s: string): Stmt<null> {
@@ -249,6 +377,24 @@ export function traverseStmt(c: TreeCursor, s: string): Stmt<null> {
       return { tag: "return", ret }
     case "PassStatement":
       return { tag: "pass" }
+    case "IfStatement":
+      // c.firstChild(); //go to if
+      // c.nextSibling(); //go to condition
+      // const cond = traverseExpr(c, s);
+      // c.nextSibling(); //go to body
+      // c.firstChild(); //step into body
+      // const body: Stmt<null>[] = []
+      // while (c.nextSibling()) {
+      //   if (isVarDef(c, s) || isFunDef(c, s)) {
+      //     throw new Error("ParseError: Variable and function definitions not allowed here");
+      //   }
+      //   body.push(traverseStmt(c, s));
+      // }
+      // c.parent();
+      // c.parent();
+      // return { tag: "if", cond, body };
+      return traverseIf(c,s);
+
     default:
       throw new Error("ParseError: Could not parse stmt at " + c.node.from + " " + c.node.to + ": " + s.substring(c.from, c.to));
   }

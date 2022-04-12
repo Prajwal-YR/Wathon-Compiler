@@ -3,6 +3,11 @@ import {run} from './runner';
 
 function webStart() {
   document.addEventListener("DOMContentLoaded", function() {
+    function display(arg : string) {
+      const elt = document.createElement("pre");
+      document.getElementById("output").appendChild(elt);
+      elt.innerText = arg;
+    }
     var importObject = {
       imports: {
         print: (arg : any) => {
@@ -10,6 +15,20 @@ function webStart() {
           const elt = document.createElement("pre");
           document.getElementById("output").appendChild(elt);
           elt.innerText = arg;
+          return arg;
+        },
+        print_num: (arg : any) => {
+          console.log("Logging from WASM: ", arg);
+          display(String(arg));
+          return arg;
+        },
+        print_bool: (arg : any) => {
+          if(arg === 0) { display("False"); }
+          else { display("True"); }
+          return arg;
+        },
+        print_none: (arg: any) => {
+          display("None");
           return arg;
         },
         abs: Math.abs,

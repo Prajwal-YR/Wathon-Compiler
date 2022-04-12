@@ -49,7 +49,8 @@ function codeGenFun(fundef: FunDef<Type>, localEnv:TypeEnv): Array<string> {
   });
   // Construct the code for params and variable declarations in the body
   const params = fundef.params.map(p => `(param $${p.name} i32)`).join(" ");
-  const varDecls = fundef.inits.map(v => `(local $${v.name} i32)`).join("\n");
+  const varDecls = fundef.inits.map(v => 
+    `(local $${v.name} i32)\n${resolveLiteral(v.init)}\n(local.set $${v.name})`).join("\n");
 
   const stmts = fundef.body.map(s => codeGenStmt(s,funEnv)).flat();
   const stmtsBody = stmts.join("\n");
@@ -74,6 +75,17 @@ function codeGenStmt(stmt: Stmt<Type>, localEnv:TypeEnv): Array<string> {
     case "return":
       var retStmts = codeGenExpr(stmt.ret, localEnv);
       return [...retStmts, `return`];
+    case "pass":
+      return ['nop'];
+    case "if":
+      var condStmts = codeGenExpr(stmt.cond, localEnv);
+      const bodyStmts = stmt.body.map(s => codeGenStmt(s,localEnv)).flat();
+      if(stmt.elseBody.length == 0)
+        return[...condStmts,
+          `(if
+            (then`,...bodyStmts,`)`,`)`];
+      const elseBodyStmts = stmt.elseBody.map(s=>codeGenStmt(s,localEnv)).flat()
+      return[...condStmts,`(if`,`(then`,...bodyStmts,`)`,`(else`,...elseBodyStmts,`)`,`)`];
   }
 }
 
@@ -94,7 +106,21 @@ function codeGenExpr(expr: Expr<Type>, localEnv:TypeEnv): Array<string> {
   switch (expr.tag) {
     case "builtin1":
       const argStmts = codeGenExpr(expr.arg, localEnv);
-      return argStmts.concat([`(call $${expr.name})`]);
+      var funName = expr.name;
+      if (funName === 'print') {
+        switch (expr.arg.a) {
+          case Type.int:
+            funName = 'print_num'
+            break;
+          case Type.bool:
+            funName = 'print_bool'
+            break;
+          case Type.none:
+            funName = 'print_none'
+            break;
+        }
+      }
+      return argStmts.concat([`(call $${funName})`]);
     case "builtin2":
       const arg1Stmts = codeGenExpr(expr.arg1, localEnv);
       const arg2Stmts = codeGenExpr(expr.arg2, localEnv);
@@ -134,5 +160,18 @@ function codeGenBinOp(op: BinOp): string {
       return "(i32.div_s)";
     case BinOp.Mod:
       return "(i32.rem_s)";
+    case BinOp.Lesser:
+      return "(i32.lt_s)";
+    case BinOp.LessEq:
+      return "(i32.le_s)";
+    case BinOp.Greater:
+      return "(i32.gt_s)";
+    case BinOp.GreatEq:
+      return "(i32.ge_s)";
+    case BinOp.Equals:
+    case BinOp.Is:
+      return "(i32.eq)";
+    case BinOp.NotEquals:
+      return "(i32.ne)";
   }
 }

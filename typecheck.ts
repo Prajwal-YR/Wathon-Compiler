@@ -22,7 +22,7 @@ export function typeCheckVarInits(inits: VarDef<null>[], env: TypeEnv): VarDef<T
   inits.forEach(init => {
     const initType = typeCheckLiteral(init.init);
     if (initType.a !== init.type) {
-      throw new Error(`TypeError: Expected type \`${init.type}\`; got type \`{initType.a}\``);
+      throw new Error(`TypeError: Expected type \`${init.type}\`; got type \`${initType.a}\``);
 
     }
     env.vars.set(init.name, init.type);
@@ -90,6 +90,18 @@ export function typeCheckStmts(stmts: Stmt<null>[], env: TypeEnv): Stmt<Type>[] 
       case "pass":
         typedStmts.push({ ...stmt, a: Type.none });
         break;
+      case "if":
+        const typedCond = typeCheckExpr(stmt.cond, env);
+        if (typedCond.a !== Type.bool)
+          throw new Error(`TypeError: Condition expression cannot be of type \`${typedCond.a}\``);
+        const typedBody = typeCheckStmts(stmt.body, env);
+        const typedElseBody = typeCheckStmts(stmt.elseBody,env);
+        typedStmts.push({ ...stmt, 
+          cond: typedCond, 
+          body: typedBody, 
+          elseBody:typedElseBody,
+          a: Type.none });
+        break;
       case "expr":
         const typedExpr = typeCheckExpr(stmt.expr, env);
         typedStmts.push({ ...stmt, expr: typedExpr, a: Type.none });
@@ -131,6 +143,25 @@ export function typeCheckExpr(expr: Expr<null>, env: TypeEnv): Expr<Type> {
             throw new Error(`TypeError: Cannot apply operator \`${expr.op}\` on types \`${left.a}\` and \`${right.a}\``)
           }
           return { ...expr, left, right, a: Type.int }
+        case BinOp.Lesser:
+        case BinOp.LessEq:
+        case BinOp.GreatEq:
+        case BinOp.Greater:
+          if (left.a !== Type.int || right.a !== Type.int) {
+            throw new Error(`TypeError: Cannot apply operator \`${expr.op}\` on types \`${left.a}\` and \`${right.a}\``)
+          }
+          return { ...expr, left, right, a: Type.bool }
+        case BinOp.Equals:
+        case BinOp.NotEquals:
+          if (left.a !== right.a || right.a === Type.none) {
+            throw new Error(`TypeError: Cannot apply operator \`${expr.op}\` on types \`${left.a}\` and \`${right.a}\``)
+          }
+          return { ...expr, left, right, a: Type.bool }
+        case BinOp.Is:
+          if (left.a !== Type.none || right.a !== Type.none) {
+            throw new Error(`TypeError: Cannot apply operator \`${expr.op}\` on types \`${left.a}\` and \`${right.a}\``)
+          }
+          return { ...expr, left, right, a: Type.bool }
       }
       break;
 
@@ -143,7 +174,7 @@ export function typeCheckExpr(expr: Expr<null>, env: TypeEnv): Expr<Type> {
       }
       const typedArgs = expr.args.map((arg) => typeCheckExpr(arg, env));
       const [actualArgs, retType] = env.funcs.get(expr.name)
-      if(actualArgs.length!==typedArgs.length)
+      if (actualArgs.length !== typedArgs.length)
         throw new Error(`Expected ${actualArgs.length} arguments for ${expr.name} got ${typedArgs.length}`)
       for (let index = 0; index < typedArgs.length; index++) {
         if (typedArgs[index].a !== actualArgs[index])
