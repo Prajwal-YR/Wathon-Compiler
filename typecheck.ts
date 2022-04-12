@@ -143,6 +143,8 @@ export function typeCheckExpr(expr: Expr<null>, env: TypeEnv): Expr<Type> {
       }
       const typedArgs = expr.args.map((arg) => typeCheckExpr(arg, env));
       const [actualArgs, retType] = env.funcs.get(expr.name)
+      if(actualArgs.length!==typedArgs.length)
+        throw new Error(`Expected ${actualArgs.length} arguments for ${expr.name} got ${typedArgs.length}`)
       for (let index = 0; index < typedArgs.length; index++) {
         if (typedArgs[index].a !== actualArgs[index])
           throw new Error(`TypeError: Expected type \`${actualArgs[index]}\`; got type \`${typedArgs[index].a}\` for parameter ${index}`);
