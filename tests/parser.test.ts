@@ -2,7 +2,7 @@ import * as mocha from 'mocha';
 import { expect } from 'chai';
 import { parser } from 'lezer-python';
 import { traverseExpr, traverseStmt, traverse, parse } from '../parser';
-import { Stmt } from '../ast';
+import { Program, Stmt } from '../ast';
 
 // We write tests for each function in parser.ts here. Each function gets its 
 // own describe statement. Each it statement represents a single test. You
@@ -63,11 +63,11 @@ describe('traverse(c, s) function', () => {
     const source = "x=2\nx+2"
     const t = parser.parse(source);
     const parsed = traverse(t.cursor(), source);
-    const actual: Array<Stmt> = []
+    const actual: Array<Program<null>> = []
     const sources = source.split('\n');
     sources.forEach(s => {
       const t = parser.parse(s);
-      actual.push(traverse(t.cursor(), s)[0]);
+      actual.push(traverse(t.cursor(), s));
     })
     expect(parsed).to.deep.equal(actual);
   });
