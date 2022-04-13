@@ -25,17 +25,10 @@ function stringifyTree(t:TreeCursor, source: string, d:number){
 }
 var source = 
 `
-def is_even(n:int) -> bool:
-    if (n == 0):
-        return True
-    else:
-        return is_odd(n - 1)
-def is_odd(n:int) -> bool:
-    if (n == 0):
-        return False
-    else:
-        return is_even(n - 1)
-print(is_even(1))
+def f():
+  print(1)
+  return
+f()
 `
 var ast_lezer = parser.parse(source);
 console.log(stringifyTree(ast_lezer.cursor(),source,0));

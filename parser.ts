@@ -379,8 +379,9 @@ export function traverseStmt(c: TreeCursor, s: string): Stmt<null> {
       return { tag: "expr", expr: expr }
     case "ReturnStatement":
       c.firstChild(); //go to return
-      c.nextSibling();
-      const ret = traverseExpr(c, s);
+      var ret:Expr<null> = {tag: "literal", literal:{tag:"none"}} //default return None
+      if(c.nextSibling())
+        ret = traverseExpr(c, s);
       c.parent();
       return { tag: "return", ret }
     case "PassStatement":
