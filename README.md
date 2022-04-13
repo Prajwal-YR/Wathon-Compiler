@@ -2,13 +2,31 @@
 
 ## Representation of values 
 
+Literals can be one of ```bool, int``` or ```None``` type. 
+
+* For numbers we use ```int```. In typescript we use ```number``` datatype and  correspondingly ```i32``` is used in WASM. Therefore, a number 32 would be represented as ```i32.const 32``` in WASM. 
+
+* For boolean values we use ```bool```. In typescript we use ```boolean``` datatype. The value can be either *True* or *False* which is represented by *true* and *false* respectively in typescript. In WASM *True* is represented by integer constant 1 i.e., ```i32.const 1``` and *False* is represented by integer constant 0 i.e., ```i32.const 0```.
+
+* None value is a separate datatype in python. We use ```{tag:"none}``` to represent None in typescript and ```i32.const 0``` in WASM.
+
+Therefore, in WASM the represnetation for integer **0**, boolean **False** and **None** is the same. In Typescript we use enum Type to distinguish them. 
+
+**Code snippet from ast.ts**
+```typescript
+export enum Type { int = "int", bool = "bool", none = "None" }
+
+export type Literal<A> = { a?: A, tag: "num", value: number }
+  | { a?: A, tag: "bool", value: boolean }
+  | { a?: A, tag: "none" }
+```
 
 ## Example program
 ```python
 x:int = 5
-def func(z:int):
-    y:int = 4
-    if z<y:
+def func(y:int):
+    z:int = 4
+    if y < z:
         print(z)
     else:
         print(y)
@@ -16,6 +34,8 @@ func(x)
 ```
 **ast.ts**
 ```typescript
+export type Program<A> = { a?: A, varinits: VarDef<A>[], fundefs: FunDef<A>[], stmts: Stmt<A>[] }
+
 export type VarDef<A> = {
   a?: A, name: string,
   type: Type,
@@ -33,6 +53,7 @@ export type FunDef<A> = {
 export type TypedVar<A> = { a?: A, name: string, type: Type }
 ```
 
+The entire program is a set of global variables, function definitions and statements. The global variables are represented by the key ```varinits``` which is an array of type ```VarDef```. The function parameter y is represented by ```params``` key which is an array of ```TypedVar``` in ```FunDef``` whereas variables declared within the scope of the function is represnted by ```inits``` which is an array of ```VarDef```. Therefore, in the above example program, ```x``` is stored in the ```varinits``` array which is part of Program and thus available in global scope. The paramter ```y``` is stored in ```params``` and ```z``` is stored in ```inits``` which are both a part of ```FunDef``` used to represent the function ```func```. 
 
 
 ## Infinite loop
@@ -43,7 +64,7 @@ while x<10:
     print(x)
 ```
 
-When this infinite loop is run on a web browser, the webpage hangs
+When this infinite loop is run on a web browser, the webpage hangs.
 
 ## Screenshots
 
