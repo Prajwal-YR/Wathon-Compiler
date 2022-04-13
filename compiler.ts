@@ -53,7 +53,7 @@ function codeGenFun(fundef: FunDef<Type>, localEnv:TypeEnv): Array<string> {
   const varDecls = fundef.inits.map(v => 
     `(local $${v.name} i32)\n${resolveLiteral(v.init)}\n(local.set $${v.name})`).join("\n");
 
-  const stmts = fundef.body.map(s => codeGenStmt(s,funEnv)).flat();
+  const stmts = fundef.body.map(s => codeGenStmt(s,funEnv, false)).flat();
   const stmtsBody = stmts.join("\n");
   return [`(func $${fundef.name} ${params} (result i32)
     (local $$last i32)
@@ -62,14 +62,18 @@ function codeGenFun(fundef: FunDef<Type>, localEnv:TypeEnv): Array<string> {
     (i32.const 0))`];
 }
 
-function codeGenStmt(stmt: Stmt<Type>, localEnv:TypeEnv): Array<string> {
+function codeGenStmt(stmt: Stmt<Type>, localEnv:TypeEnv, useGlobal:boolean = true): Array<string> {
   switch (stmt.tag) {
     case "assign":
       var valStmts = codeGenExpr(stmt.value, localEnv);
       if(localEnv.vars.has(stmt.name))
         return valStmts.concat([`(local.set $${stmt.name})`]);
       
-      return valStmts.concat([`(global.set $${stmt.name})`]);
+      if (useGlobal)
+        return valStmts.concat([`(global.set $${stmt.name})`]);
+      throw new ReferenceError(`Cannot assign to variable that is not explicitly declared in this scope: \`${stmt.name}\``);
+      
+
     case "expr":
       var exprStmts = codeGenExpr(stmt.expr, localEnv);
       return exprStmts.concat([`(local.set $$last)`]);
@@ -80,18 +84,18 @@ function codeGenStmt(stmt: Stmt<Type>, localEnv:TypeEnv): Array<string> {
       return ['nop'];
     case "if":
       var condStmts = codeGenExpr(stmt.cond, localEnv);
-      var bodyStmts = stmt.body.map(s => codeGenStmt(s,localEnv)).flat();
+      var bodyStmts = stmt.body.map(s => codeGenStmt(s,localEnv,useGlobal)).flat();
       if(stmt.elseBody.length == 0)
         return[...condStmts,
           `(if
             (then`,...bodyStmts,`)`,`)`];
-      const elseBodyStmts = stmt.elseBody.map(s=>codeGenStmt(s,localEnv)).flat()
+      const elseBodyStmts = stmt.elseBody.map(s=>codeGenStmt(s,localEnv,useGlobal)).flat()
       return[...condStmts,`(if`,`(then`,...bodyStmts,`)`,`(else`,...elseBodyStmts,`)`,`)`];
     case "while":
       var label = labelCounter;
       labelCounter++;
       var condStmts = codeGenExpr(stmt.cond, localEnv);
-      var bodyStmts = stmt.body.map(s => codeGenStmt(s,localEnv)).flat();
+      var bodyStmts = stmt.body.map(s => codeGenStmt(s,localEnv,useGlobal)).flat();
       return [`(block $block_${label}`,
       `(loop $loop_${label}`,
       ...condStmts,

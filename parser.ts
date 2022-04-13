@@ -332,8 +332,9 @@ function traverseIf(c: TreeCursor, s: string): Stmt<null> {
     }
     c.parent(); // pop elif body
     stmt.elseBody.push({tag:"if", cond,body,elseBody:new Array<Stmt<null>>()});
+    out = c.nextSibling();
   }
-  out = c.nextSibling();
+  
   if (out && c.type.name === 'else') {
     c.nextSibling(); //go to body
     c.firstChild(); //step into body
