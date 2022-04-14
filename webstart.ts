@@ -20,12 +20,12 @@ function webStart() {
         print_num: (arg: any) => {
           console.log("Logging from WASM: ", arg);
           display(String(arg));
-          return arg;
+          return 0;
         },
         print_bool: (arg: any) => {
           if (arg === 0) { display("False"); }
           else { display("True"); }
-          return arg;
+          return 0;
         },
         print_none: (arg: any) => {
           display("None");

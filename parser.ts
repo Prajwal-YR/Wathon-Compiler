@@ -258,48 +258,7 @@ function set(obj: any, path: string, value: any) {
   }
   schema[pList[len-1]] = value;
 }
-// function traverseIf(c: TreeCursor, s: string): Stmt<null> {
-//   c.firstChild(); //go to if
-//   var stmt:any = {};
-//   var pointer:any = "";
-//   do{
-//     if (c.type.name.endsWith('if')) {
-//       c.nextSibling();
-//       const cond = traverseExpr(c, s);
-//       c.nextSibling(); //go to body
-//       c.firstChild(); //step into body
-//       const body: Stmt<null>[] = []
-//       while (c.nextSibling()) {
-//         if (isVarDef(c, s) || isFunDef(c, s)) {
-//           throw new Error("ParseError: Variable and function definitions not allowed here");
-//         }
-//         body.push(traverseStmt(c, s));
-//       }
-//       c.parent();
-//       const val = [{tag:"if", cond, body,elseBody:new Array()}]
-//       if ("elseBody" in stmt) {
-//         stmt[pointer] = val;
 
-//       }
-//       else stmt = val;
-//       pointer = pointer['elseBody'];
-//     } else {
-//       c.nextSibling();
-//       c.firstChild(); //step into body
-//       const body: Stmt<null>[] = []
-//       while (c.nextSibling()) {
-//         if (isVarDef(c, s) || isFunDef(c, s)) {
-//           throw new Error("ParseError: Variable and function definitions not allowed here");
-//         }
-//         body.push(traverseStmt(c, s));
-//       }
-//       c.parent();
-//       pointer = body;
-//     }
-//   }while (c.nextSibling());
-//   console.log(JSON.stringify(stmt,null,2));
-//   return stmt;
-// }
 
 function traverseIf(c: TreeCursor, s: string): Stmt<null> {
   c.firstChild(); //go to if

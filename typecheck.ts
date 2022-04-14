@@ -3,7 +3,7 @@ import { BinOp, Expr, FunDef, Literal, Program, Stmt, Type, TypedVar, UniOp, Var
 export type TypeEnv = {
   vars: Map<string, Type>,
   funcs: Map<string, [Type[], Type]>,
-  retType: Type
+  retType: Type //stores the return type for the current function
 }
 
 export function typeCheckProgram(prog: Program<null>, env: TypeEnv): Program<Type> {
@@ -38,8 +38,6 @@ export function typeCheckVarInits(inits: VarDef<null>[], env: TypeEnv): VarDef<T
 
 function typeCheckFunDef(fundef: FunDef<null>, env: TypeEnv): FunDef<Type> {
   
-  // // add func to env
-  // env.funcs.set(fundef.name, [fundef.params.map(param => param.type), fundef.ret])
   // add params to env
   const localEnv: TypeEnv = { ...env, vars: new Map(env.vars), funcs: new Map(env.funcs) };
   fundef.params.forEach(param => {
@@ -50,9 +48,6 @@ function typeCheckFunDef(fundef: FunDef<null>, env: TypeEnv): FunDef<Type> {
 
   // check inits and add to env
   const typedInits = typeCheckVarInits(fundef.inits, localEnv);
-  // fundef.inits.forEach(init => {
-  //   localEnv.vars.set(init.name,init.type);
-  // });
 
   
   localEnv.retType = fundef.ret;
@@ -137,7 +132,17 @@ export function typeCheckExpr(expr: Expr<null>, env: TypeEnv): Expr<Type> {
       return { ...expr, a: idType }
     case "builtin1":
       const arg = typeCheckExpr(expr.arg, env);
-      return { ...expr, arg, a: Type.int };
+      switch (expr.name) {
+        case "print":
+          return { ...expr, arg, a: Type.none };
+      
+        case "abs":
+          if(arg.a !== Type.int)
+            throw new TypeError(`Expected int; got ${arg.a} for abs()`); 
+          return {...expr, arg, a:Type.int}
+      }
+      break;
+      
     case "builtin2":
       const arg1 = typeCheckExpr(expr.arg1, env);
       const arg2 = typeCheckExpr(expr.arg2, env);
