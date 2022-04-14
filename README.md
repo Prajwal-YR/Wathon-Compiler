@@ -166,6 +166,7 @@ In typeCheck.ts, all these variables are typechecked. For ```x:int=5``` it is en
 
 In compile.ts we generate code for all the global variables separately as shown in the snippet. For function definitions we first generate code for paramters (which are all i32 since all types are essentially represented by i32 as described in [Section 1](#representation-of-values)). Then code is genertaed for variables initialised in function scope using ```local```.
 
+**compile.ts**
 ```typescript
 ...
 var globals:string[] = [];
