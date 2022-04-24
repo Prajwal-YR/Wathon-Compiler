@@ -166,21 +166,26 @@ export function traverseExpr(c: TreeCursor, s: string): Expr<null> {
     case "UnaryExpression":
       c.firstChild();
       var uniop: UniOp;
-      switch(s.substring(c.from, c.to)){
+      switch (s.substring(c.from, c.to)) {
         case "not":
           uniop = UniOp.Not;
           break;
         case "-":
           uniop = UniOp.Neg;
           break;
+        case "+":
+          c.nextSibling();
+          var ret = traverseExpr(c, s);
+          c.parent();
+          return ret;
         default:
           throw new Error("ParseError: Unknown unary operator");
       }
       c.nextSibling();
-      var right = traverseExpr(c,s)
+      var right = traverseExpr(c, s)
       c.parent();
-      
-      return { tag: "uniexpr", op:uniop, right };
+
+      return { tag: "uniexpr", op: uniop, right };
 
     case "BinaryExpression":
       c.firstChild();
@@ -248,15 +253,15 @@ export function traverseBinOp(c: TreeCursor, s: string): BinOp {
   }
 }
 function set(obj: any, path: string, value: any) {
-  var schema = obj; 
+  var schema = obj;
   var pList = path.split('.');
   var len = pList.length;
-  for(var i = 0; i < len-1; i++) {
-      var elem = pList[i];
-      if( !schema[elem] ) schema[elem] = {}
-      schema = schema[elem];
+  for (var i = 0; i < len - 1; i++) {
+    var elem = pList[i];
+    if (!schema[elem]) schema[elem] = {}
+    schema = schema[elem];
   }
-  schema[pList[len-1]] = value;
+  schema[pList[len - 1]] = value;
 }
 
 
@@ -274,7 +279,7 @@ function traverseIf(c: TreeCursor, s: string): Stmt<null> {
     body.push(traverseStmt(c, s));
   }
   c.parent();// pop if body
-  var stmt:Stmt<null> = {tag:"if", cond, body, elseBody:new Array<Stmt<null>>()}
+  var stmt: Stmt<null> = { tag: "if", cond, body, elseBody: new Array<Stmt<null>>() }
   var elif = {}
   var out = c.nextSibling()
   if (out && c.type.name === 'elif') {
@@ -290,10 +295,10 @@ function traverseIf(c: TreeCursor, s: string): Stmt<null> {
       body.push(traverseStmt(c, s));
     }
     c.parent(); // pop elif body
-    stmt.elseBody.push({tag:"if", cond,body,elseBody:new Array<Stmt<null>>()});
+    stmt.elseBody.push({ tag: "if", cond, body, elseBody: new Array<Stmt<null>>() });
     out = c.nextSibling();
   }
-  
+
   if (out && c.type.name === 'else') {
     c.nextSibling(); //go to body
     c.firstChild(); //step into body
@@ -305,15 +310,15 @@ function traverseIf(c: TreeCursor, s: string): Stmt<null> {
       elseBody.push(traverseStmt(c, s));
     }
     c.parent(); //pop else body
-    if(stmt.elseBody.length == 0)
+    if (stmt.elseBody.length == 0)
       stmt.elseBody = elseBody;
     else
-    // @ts-ignore
+      // @ts-ignore
       stmt.elseBody[0].elseBody = elseBody;
   }
   c.parent();
   return stmt;
-  
+
 }
 
 export function traverseStmt(c: TreeCursor, s: string): Stmt<null> {
@@ -338,31 +343,31 @@ export function traverseStmt(c: TreeCursor, s: string): Stmt<null> {
       return { tag: "expr", expr: expr }
     case "ReturnStatement":
       c.firstChild(); //go to return
-      var ret:Expr<null> = {tag: "literal", literal:{tag:"none"}} //default return None
-      if(c.nextSibling())
+      var ret: Expr<null> = { tag: "literal", literal: { tag: "none" } } //default return None
+      if (c.nextSibling())
         ret = traverseExpr(c, s);
       c.parent();
       return { tag: "return", ret }
     case "PassStatement":
       return { tag: "pass" }
     case "IfStatement":
-      return traverseIf(c,s);
+      return traverseIf(c, s);
     case "WhileStatement":
       c.firstChild();// go to while
       c.nextSibling(); // go to condn
-      const cond = traverseExpr(c,s);
+      const cond = traverseExpr(c, s);
       c.nextSibling(); //go to body
       c.firstChild(); //go to :
-      const body:Stmt<null>[] = []
-      while(c.nextSibling()){
+      const body: Stmt<null>[] = []
+      while (c.nextSibling()) {
         if (isVarDef(c, s) || isFunDef(c, s)) {
           throw new Error("ParseError: Variable and function definitions not allowed here");
-      }
-        body.push(traverseStmt(c,s));
+        }
+        body.push(traverseStmt(c, s));
       }
       c.parent();// Pop body
       c.parent();// Pop while
-      return {tag:"while", cond, body}
+      return { tag: "while", cond, body }
     default:
       throw new Error("ParseError: Could not parse stmt at " + c.node.from + " " + c.node.to + ": " + s.substring(c.from, c.to));
   }

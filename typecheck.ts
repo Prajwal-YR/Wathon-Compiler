@@ -37,7 +37,7 @@ export function typeCheckVarInits(inits: VarDef<null>[], env: TypeEnv): VarDef<T
 }
 
 function typeCheckFunDef(fundef: FunDef<null>, env: TypeEnv): FunDef<Type> {
-  
+
   // add params to env
   const localEnv: TypeEnv = { ...env, vars: new Map(env.vars), funcs: new Map(env.funcs) };
   fundef.params.forEach(param => {
@@ -49,11 +49,22 @@ function typeCheckFunDef(fundef: FunDef<null>, env: TypeEnv): FunDef<Type> {
   // check inits and add to env
   const typedInits = typeCheckVarInits(fundef.inits, localEnv);
 
-  
+
   localEnv.retType = fundef.ret;
   // check body
   const typedStmts = typeCheckStmts(fundef.body, localEnv)
+
   // check return
+  const lastStmt = typedStmts[typedStmts.length - 1]
+  if (lastStmt.tag !== "return") {
+    if (lastStmt.tag==="pass") {
+      
+    }
+    else if (lastStmt.tag !== "if" || lastStmt.elseBody.length == 0 || lastStmt.elseBody[lastStmt.elseBody.length - 1].tag !== "return") {
+      throw new Error(`All paths must have return for function ${fundef.name}`);
+    }
+    
+  }
 
   return { ...fundef, params: typedParams, inits: typedInits, body: typedStmts }
 }
@@ -95,22 +106,26 @@ export function typeCheckStmts(stmts: Stmt<null>[], env: TypeEnv): Stmt<Type>[] 
         if (typedCond.a !== Type.bool)
           throw new TypeError(`Condition expression cannot be of type \`${typedCond.a}\``);
         const typedBody = typeCheckStmts(stmt.body, env);
-        const typedElseBody = typeCheckStmts(stmt.elseBody,env);
-        typedStmts.push({ ...stmt, 
-          cond: typedCond, 
-          body: typedBody, 
-          elseBody:typedElseBody,
-          a: Type.none });
+        const typedElseBody = typeCheckStmts(stmt.elseBody, env);
+        typedStmts.push({
+          ...stmt,
+          cond: typedCond,
+          body: typedBody,
+          elseBody: typedElseBody,
+          a: Type.none
+        });
         break;
       case "while":
         const typedWhileCond = typeCheckExpr(stmt.cond, env);
         if (typedWhileCond.a !== Type.bool)
           throw new TypeError(`Condition expression cannot be of type \`${typedWhileCond.a}\``);
         const typedWhileBody = typeCheckStmts(stmt.body, env);
-        typedStmts.push({ ...stmt, 
-          cond: typedWhileCond, 
-          body: typedWhileBody, 
-          a: Type.none });
+        typedStmts.push({
+          ...stmt,
+          cond: typedWhileCond,
+          body: typedWhileBody,
+          a: Type.none
+        });
         break;
       case "expr":
         const typedExpr = typeCheckExpr(stmt.expr, env);
@@ -135,14 +150,14 @@ export function typeCheckExpr(expr: Expr<null>, env: TypeEnv): Expr<Type> {
       switch (expr.name) {
         case "print":
           return { ...expr, arg, a: Type.none };
-      
+
         case "abs":
-          if(arg.a !== Type.int)
-            throw new TypeError(`Expected int; got ${arg.a} for abs()`); 
-          return {...expr, arg, a:Type.int}
+          if (arg.a !== Type.int)
+            throw new TypeError(`Expected int; got ${arg.a} for abs()`);
+          return { ...expr, arg, a: Type.int }
       }
       break;
-      
+
     case "builtin2":
       const arg1 = typeCheckExpr(expr.arg1, env);
       const arg2 = typeCheckExpr(expr.arg2, env);
@@ -154,15 +169,15 @@ export function typeCheckExpr(expr: Expr<null>, env: TypeEnv): Expr<Type> {
       var right = typeCheckExpr(expr.right, env);
       switch (expr.op) {
         case UniOp.Not:
-          if(right.a!==Type.bool)
+          if (right.a !== Type.bool)
             throw new TypeError(`Cannot apply operator \`${expr.op}\` on type \`${right.a}\``)
           break;
         case UniOp.Neg:
-          if(right.a!==Type.int)
+          if (right.a !== Type.int)
             throw new TypeError(`Cannot apply operator \`${expr.op}\` on type \`${right.a}\``)
           break;
       }
-      return {...expr, right, a:right.a};
+      return { ...expr, right, a: right.a };
     case "binexpr":
       const left = typeCheckExpr(expr.left, env);
       var right = typeCheckExpr(expr.right, env);

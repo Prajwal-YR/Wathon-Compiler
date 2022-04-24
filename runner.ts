@@ -28,7 +28,7 @@ export async function run(source: string, config: any): Promise<number> {
   var returnExpr = "";
   if (parsed.stmts.length > 0) {
     const lastExpr = parsed.stmts[parsed.stmts.length - 1]
-    if (lastExpr.tag === "expr") {
+    if (lastExpr.tag === "expr" && !(lastExpr.expr.tag === 'builtin1' && lastExpr.expr.name === 'print')) {
       returnType = "(result i32)";
       returnExpr = "(local.get $$last)"
     }
@@ -50,7 +50,7 @@ export async function run(source: string, config: any): Promise<number> {
       ${returnExpr}
     )
   )`;
-  console.log("Final Wasm code:\n"+wasmSource);
+  console.log("Final Wasm code:\n" + wasmSource);
   const myModule = wabtInterface.parseWat("test.wat", wasmSource);
   var asBinary = myModule.toBinary({});
   var wasmModule = await WebAssembly.instantiate(asBinary.buffer, importObject);

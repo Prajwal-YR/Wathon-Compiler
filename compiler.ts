@@ -21,15 +21,15 @@ export function compile(source: string): CompileResult {
   const emptyEnv: TypeEnv = { vars: new Map(), funcs: new Map, retType: Type.none };
 
   const scratchVar: string = `(local $$last i32)`;
-  var globals:string[] = [];
+  var globals: string[] = [];
   typedAst.varinits.forEach((v) => {
     globals.push(`(global $${v.name} (mut i32) ${resolveLiteral(v.init)})`);
   });
 
-  typedAst.fundefs.forEach((f)=>{
+  typedAst.fundefs.forEach((f) => {
     globals = globals.concat(codeGenFun(f, emptyEnv));
   });
-  const commandGroups = typedAst.stmts.map(stmt=>codeGenStmt(stmt,emptyEnv));
+  const commandGroups = typedAst.stmts.map(stmt => codeGenStmt(stmt, emptyEnv));
   const commands = [].concat.apply([scratchVar], commandGroups);
   console.log("Generated: ", commands.join("\n"));
   return {
@@ -38,22 +38,22 @@ export function compile(source: string): CompileResult {
   };
 }
 
-function codeGenFun(fundef: FunDef<Type>, localEnv:TypeEnv): Array<string> {
+function codeGenFun(fundef: FunDef<Type>, localEnv: TypeEnv): Array<string> {
   // Construct the environment for the function body
-  const funEnv:TypeEnv = { vars: new Map(), funcs: new Map, retType: Type.none };
+  const funEnv: TypeEnv = { vars: new Map(), funcs: new Map, retType: Type.none };
   // Construct the code for params and variable declarations in the body
   fundef.inits.forEach(init => {
-    funEnv.vars.set(init.name,init.type);
+    funEnv.vars.set(init.name, init.type);
   });
   fundef.params.forEach(param => {
-    funEnv.vars.set(param.name,param.type);
+    funEnv.vars.set(param.name, param.type);
   });
   // Construct the code for params and variable declarations in the body
   const params = fundef.params.map(p => `(param $${p.name} i32)`).join(" ");
-  const varDecls = fundef.inits.map(v => 
+  const varDecls = fundef.inits.map(v =>
     `(local $${v.name} i32)\n${resolveLiteral(v.init)}\n(local.set $${v.name})`).join("\n");
 
-  const stmts = fundef.body.map(s => codeGenStmt(s,funEnv, false)).flat();
+  const stmts = fundef.body.map(s => codeGenStmt(s, funEnv, false)).flat();
   const stmtsBody = stmts.join("\n");
   return [`(func $${fundef.name} ${params} (result i32)
     (local $$last i32)
@@ -62,17 +62,17 @@ function codeGenFun(fundef: FunDef<Type>, localEnv:TypeEnv): Array<string> {
     (i32.const 0))`];
 }
 
-function codeGenStmt(stmt: Stmt<Type>, localEnv:TypeEnv, useGlobal:boolean = true): Array<string> {
+function codeGenStmt(stmt: Stmt<Type>, localEnv: TypeEnv, useGlobal: boolean = true): Array<string> {
   switch (stmt.tag) {
     case "assign":
       var valStmts = codeGenExpr(stmt.value, localEnv);
-      if(localEnv.vars.has(stmt.name))
+      if (localEnv.vars.has(stmt.name))
         return valStmts.concat([`(local.set $${stmt.name})`]);
-      
+
       if (useGlobal)
         return valStmts.concat([`(global.set $${stmt.name})`]);
       throw new ReferenceError(`Cannot assign to variable that is not explicitly declared in this scope: \`${stmt.name}\``);
-      
+
 
     case "expr":
       var exprStmts = codeGenExpr(stmt.expr, localEnv);
@@ -84,30 +84,30 @@ function codeGenStmt(stmt: Stmt<Type>, localEnv:TypeEnv, useGlobal:boolean = tru
       return ['nop'];
     case "if":
       var condStmts = codeGenExpr(stmt.cond, localEnv);
-      var bodyStmts = stmt.body.map(s => codeGenStmt(s,localEnv,useGlobal)).flat();
-      if(stmt.elseBody.length == 0)
-        return[...condStmts,
+      var bodyStmts = stmt.body.map(s => codeGenStmt(s, localEnv, useGlobal)).flat();
+      if (stmt.elseBody.length == 0)
+        return [...condStmts,
           `(if
-            (then`,...bodyStmts,`)`,`)`];
-      const elseBodyStmts = stmt.elseBody.map(s=>codeGenStmt(s,localEnv,useGlobal)).flat()
-      return[...condStmts,`(if`,`(then`,...bodyStmts,`)`,`(else`,...elseBodyStmts,`)`,`)`];
+            (then`, ...bodyStmts, `)`, `)`];
+      const elseBodyStmts = stmt.elseBody.map(s => codeGenStmt(s, localEnv, useGlobal)).flat()
+      return [...condStmts, `(if`, `(then`, ...bodyStmts, `)`, `(else`, ...elseBodyStmts, `)`, `)`];
     case "while":
       var label = labelCounter;
       labelCounter++;
       var condStmts = codeGenExpr(stmt.cond, localEnv);
-      var bodyStmts = stmt.body.map(s => codeGenStmt(s,localEnv,useGlobal)).flat();
+      var bodyStmts = stmt.body.map(s => codeGenStmt(s, localEnv, useGlobal)).flat();
       return [`(block $block_${label}`,
       `(loop $loop_${label}`,
       ...condStmts,
-      `i32.const 1`,
-      `i32.xor`,
+        `i32.const 1`,
+        `i32.xor`,
       `br_if $block_${label}`,
       ...bodyStmts,
       `br $loop_${label}`,
-      `)`,
-      `)`
-    ];
-      
+        `)`,
+        `)`
+      ];
+
   }
 }
 
@@ -124,7 +124,7 @@ function resolveLiteral(literal: Literal<Type>): string {
   }
 }
 
-function codeGenExpr(expr: Expr<Type>, localEnv:TypeEnv): Array<string> {
+function codeGenExpr(expr: Expr<Type>, localEnv: TypeEnv): Array<string> {
   switch (expr.tag) {
     case "builtin1":
       const argStmts = codeGenExpr(expr.arg, localEnv);
@@ -151,7 +151,7 @@ function codeGenExpr(expr: Expr<Type>, localEnv:TypeEnv): Array<string> {
       return [resolveLiteral(expr.literal)];
 
     case "id":
-      if(localEnv.vars.has(expr.name))
+      if (localEnv.vars.has(expr.name))
         return [`(local.get $${expr.name})`];
 
       return [`(global.get $${expr.name})`];
@@ -165,15 +165,16 @@ function codeGenExpr(expr: Expr<Type>, localEnv:TypeEnv): Array<string> {
 
     case "uniexpr":
       var rightexpr = codeGenExpr(expr.right, localEnv);
-      switch(expr.op){
+      switch (expr.op) {
         case UniOp.Neg:
-          return ["(i32.const 0)",...rightexpr,"(i32.sub)"]
+          return ["(i32.const 0)", ...rightexpr, "(i32.sub)"]
         case UniOp.Not:
-          return ["(i32.const 1)",...rightexpr,"(i32.xor)"]
+          return ["(i32.const 1)", ...rightexpr, "(i32.xor)"]
       }
+    break;
 
     case "call":
-      const argsStmts = expr.args.map((arg)=>codeGenExpr(arg,localEnv)).flat();
+      const argsStmts = expr.args.map((arg) => codeGenExpr(arg, localEnv)).flat();
       return [...argsStmts, `(call $${expr.name})`];
 
   }
