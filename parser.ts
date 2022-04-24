@@ -88,6 +88,9 @@ function traverseFunDef(c: TreeCursor, s: string): FunDef<null> {
   }
   c.parent();      // Pop to Body
   c.parent();      // Pop to FunctionDefinition
+  if (ret == Type.none && body[body.length - 1].tag !== "return") {
+    body.push({ tag: "return", ret: { tag: "literal", literal: { tag: "none" } } });
+  }
   return {
     name, params, inits, body, ret
   }
