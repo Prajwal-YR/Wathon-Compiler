@@ -2,7 +2,7 @@ import * as mocha from 'mocha';
 import { expect } from 'chai';
 import { parser } from 'lezer-python';
 import { traverseExpr, traverseStmt, traverse, parse } from '../parser';
-import { Stmt } from '../ast';
+import { Program, Stmt } from '../ast';
 
 // We write tests for each function in parser.ts here. Each function gets its 
 // own describe statement. Each it statement represents a single test. You
@@ -21,7 +21,7 @@ describe('traverseExpr(c, s) function', () => {
     const parsedExpr = traverseExpr(cursor, source);
 
     // Note: we have to use deep equality when comparing objects
-    expect(parsedExpr).to.deep.equal({ tag: "num", value: 987 });
+    expect(parsedExpr).to.deep.equal({ tag: "literal", literal:{tag:"num", value: 987 }});
   })
 
   // TODO: add additional tests here to ensure traverseExpr works as expected
@@ -30,7 +30,7 @@ describe('traverseExpr(c, s) function', () => {
 describe('traverseStmt(c, s) function', () => {
   // TODO: add tests here to ensure traverseStmt works as expected
   it('parses an assignment statement', () => {
-    const source = "x=2";
+    const source = "x =2";
     const cursor = parser.parse(source).cursor();
 
     // go to statement
@@ -40,6 +40,8 @@ describe('traverseStmt(c, s) function', () => {
 
     // go to expression
     cursor.firstChild();
+    // cursor.nextSibling(); // go to typedef
+    // cursor.nextSibling(); // go to typedef
     cursor.nextSibling(); // go to equals
     cursor.nextSibling(); // go to value
     const value = traverseExpr(cursor, source);
@@ -47,7 +49,7 @@ describe('traverseStmt(c, s) function', () => {
 
 
     // Note: we have to use deep equality when comparing objects
-    expect(parsedStmt).to.deep.equal({ tag: "define", name: "x", value });
+    expect(parsedStmt).to.deep.equal({ tag: "assign", name: "x", value });
   })
 });
 
@@ -56,18 +58,21 @@ describe('traverse(c, s) function', () => {
   it('traverse a statement', () => {
     const source = "987"
     const t = parser.parse(source);
-    const parsed = traverse(t.cursor(), source);
-    expect(parsed).to.deep.equal([{ tag: "expr", expr: { tag: "num", value: 987 } }]);
+    const parsed = traverse(t.cursor(), source).stmts;
+    expect(parsed).to.deep.equal([{ tag: "expr", expr: {  tag: "literal", literal:{tag:"num", value: 987 } } }]);
   });
   it('traverse multiple statements', () => {
-    const source = "x=2\nx+2"
+    const source = "x:int=2\nx+2"
     const t = parser.parse(source);
     const parsed = traverse(t.cursor(), source);
-    const actual: Array<Stmt> = []
+    var actual: Program<null> = {varinits:[],fundefs:[], stmts:[]};
     const sources = source.split('\n');
     sources.forEach(s => {
       const t = parser.parse(s);
-      actual.push(traverse(t.cursor(), s)[0]);
+      const out = traverse(t.cursor(),s);
+      actual.varinits = [...actual.varinits, ...out.varinits];
+      actual.fundefs = [...actual.fundefs, ...out.fundefs];
+      actual.stmts = [...actual.stmts, ...out.stmts];
     })
     expect(parsed).to.deep.equal(actual);
   });
@@ -76,75 +81,86 @@ describe('traverse(c, s) function', () => {
 
 describe('parse(source) function', () => {
   it('parse a number', () => {
-    const parsed = parse("987");
-    expect(parsed).to.deep.equal([{ tag: "expr", expr: { tag: "num", value: 987 } }]);
+    const parsed = parse("987").stmts;
+    const expr = {  tag: "literal", literal:{tag:"num", value: 987 } }
+    expect(parsed).to.deep.equal([{ tag: "expr", expr }]);
   });
 
   // TODO: add additional tests here to ensure parse works as expected
 
   it('parse a negative number', () => {
-    const parsed = parse("-987");
-    expect(parsed).to.deep.equal([{ tag: "expr", expr: { tag: "num", value: -987 } }]);
+    const parsed = parse("-987").stmts;
+    const expr = {  tag: "uniexpr", op:"-", right:{  tag: "literal", literal:{tag:"num", value: 987 } } }
+    expect(parsed).to.deep.equal([{ tag: "expr", expr }]);
   });
 
   it('parse a positive number', () => {
-    const parsed = parse("+987");
-    expect(parsed).to.deep.equal([{ tag: "expr", expr: { tag: "num", value: 987 } }]);
+    const parsed = parse("+987").stmts;
+    const expr = {  tag: "literal", literal:{tag:"num", value: 987 } }
+    expect(parsed).to.deep.equal([{ tag: "expr", expr }]);
   });
 
   it('parse 2+3', () => {
-    const parsed = parse("2+3");
-    const left = {tag:"num", value:2}
-    const right = {tag:"num", value:3}
+    const parsed = parse("2+3").stmts;
+    const left = {  tag: "literal", literal:{tag:"num", value: 2 } };
+    const right = {  tag: "literal", literal:{tag:"num", value: 3 } };
     expect(parsed).to.deep.equal([{ tag: "expr", expr: { tag: "binexpr", op:"+", left, right } }]);
   });
   it('parse 2-3', () => {
-    const parsed = parse("2-3");
-    const left = {tag:"num", value:2}
-    const right = {tag:"num", value:3}
+    const parsed = parse("2-3").stmts;
+    const left = {  tag: "literal", literal:{tag:"num", value: 2 } };
+    const right = {  tag: "literal", literal:{tag:"num", value: 3 } };
     expect(parsed).to.deep.equal([{ tag: "expr", expr: { tag: "binexpr", op:"-", left, right } }]);
   });
   it('parse 2*3', () => {
-    const parsed = parse("2*3");
-    const left = {tag:"num", value:2}
-    const right = {tag:"num", value:3}
+    const parsed = parse("2*3").stmts;
+    const left = {  tag: "literal", literal:{tag:"num", value: 2 } };
+    const right = {  tag: "literal", literal:{tag:"num", value: 3 } };
     expect(parsed).to.deep.equal([{ tag: "expr", expr: { tag: "binexpr", op:"*", left, right } }]);
+  });
+  it('parse 2//3', () => {
+    const parsed = parse("2//3").stmts;
+    const left = {  tag: "literal", literal:{tag:"num", value: 2 } };
+    const right = {  tag: "literal", literal:{tag:"num", value: 3 } };
+    expect(parsed).to.deep.equal([{ tag: "expr", expr: { tag: "binexpr", op:"//", left, right } }]);
+  });
+  it('parse 2%3', () => {
+    const parsed = parse("2%3").stmts;
+    const left = {  tag: "literal", literal:{tag:"num", value: 2 } };
+    const right = {  tag: "literal", literal:{tag:"num", value: 3 } };
+    expect(parsed).to.deep.equal([{ tag: "expr", expr: { tag: "binexpr", op:"%", left, right } }]);
   });
   it('parse 2/3 should fail', function(done) {
     expect(parse.bind(null,"2/3")).to.throw('ParseError')
     done()
   });
-  it('parse 2%3 should fail', function(done) {
-    expect(parse.bind(null,"2%3")).to.throw('ParseError')
-    done()
-  });
 
   it('parse abs(987)', () => {
-    const parsed = parse("abs(987)");
-    const arg = { tag: "num", value: 987 }
+    const parsed = parse("abs(987)").stmts;
+    const arg = {  tag: "literal", literal:{tag:"num", value: 987 } }
     expect(parsed).to.deep.equal([{ tag: "expr", expr: { tag: "builtin1", name: "abs", arg } }]);
   });
   it('parse print(987)', () => {
-    const parsed = parse("print(987)");
-    const arg = { tag: "num", value: 987 }
+    const parsed = parse("print(987)").stmts;
+    const arg = {  tag: "literal", literal:{tag:"num", value: 987 } }
     expect(parsed).to.deep.equal([{ tag: "expr", expr: { tag: "builtin1", name: "print", arg } }]);
   });
   it('parse max(987,989)', () => {
-    const parsed = parse("max(987,989)");
-    const arg1 = {tag: "num", value: 987}
-    const arg2 = {tag: "num", value: 989}
+    const parsed = parse("max(987,989)").stmts;
+    const arg1 = {  tag: "literal", literal:{tag:"num", value: 987 } }
+    const arg2 = {  tag: "literal", literal:{tag:"num", value: 989 } }
     expect(parsed).to.deep.equal([{tag: "expr", expr: {tag: "builtin2", name:"max", arg1, arg2}}]);
   }); 
   it('parse min(987,989)', () => {
-    const parsed = parse("min(987,989)");
-    const arg1 = {tag: "num", value: 987}
-    const arg2 = {tag: "num", value: 989}
+    const parsed = parse("min(987,989)").stmts;
+    const arg1 = {  tag: "literal", literal:{tag:"num", value: 987 } }
+    const arg2 = {  tag: "literal", literal:{tag:"num", value: 989 } }
     expect(parsed).to.deep.equal([{tag: "expr", expr: {tag: "builtin2", name:"min", arg1, arg2}}]);
   }); 
   it('parse pow(2,3)', () => {
-    const parsed = parse("pow(2,3)");
-    const arg1 = {tag: "num", value: 2}
-    const arg2 = {tag: "num", value: 3}
+    const parsed = parse("pow(2,3)").stmts;
+    const arg1 = {  tag: "literal", literal:{tag:"num", value: 2 } }
+    const arg2 = {  tag: "literal", literal:{tag:"num", value: 3 } }
     expect(parsed).to.deep.equal([{tag: "expr", expr: {tag: "builtin2", name:"pow", arg1, arg2}}]);
   });
   
@@ -174,11 +190,6 @@ describe('parse(source) function', () => {
 
   it('parse pow(9) should fail', function(done) {
     expect(parse.bind(null,"pow(9)")).to.throw('ParseError')
-    done()
-  });
-
-  it('parse sqrt(987) should fail', function(done) {
-    expect(parse.bind(null,"sqrt(987)")).to.throw('ParseError')
     done()
   });
 
