@@ -1,6 +1,6 @@
 import { parser } from "lezer-python";
 import { TreeCursor } from "lezer-tree";
-import { BinOp, Expr, Stmt, Literal, Type, TypedVar, FunDef, VarDef, Program, UniOp } from "./ast";
+import { BinOp, Expr, Stmt, Literal, Type, TypedVar, FunDef, VarDef, Program, UniOp, ClassDef, GetAttr } from "./ast";
 
 function traverseLiteral(c: TreeCursor, s: string): Literal<null> {
   switch (c.type.name) {
@@ -35,6 +35,10 @@ function isFunDef(c: TreeCursor, s: string): boolean {
   return c.type.name === "FunctionDefinition";
 }
 
+function isClassDef(c: TreeCursor, s: string): boolean {
+  return c.type.name === "ClassDefinition";
+}
+
 function traverseVarDef(c: TreeCursor, s: string): VarDef<null> {
   c.firstChild();
   const { name, type } = traverseTypedVar(c, s);
@@ -66,7 +70,7 @@ function traverseFunDef(c: TreeCursor, s: string): FunDef<null> {
   c.nextSibling(); // Focus on ParamList
   var params = traverseParameters(c, s)
   c.nextSibling(); // Focus on Body or TypeDef
-  let ret: Type = Type.none;
+  let ret: Type = "None";
   if (c.type.name === "TypeDef") {
     c.firstChild(); // go to ->
     c.nextSibling(); // go to return type
@@ -88,7 +92,7 @@ function traverseFunDef(c: TreeCursor, s: string): FunDef<null> {
   }
   c.parent();      // Pop to Body
   c.parent();      // Pop to FunctionDefinition
-  if (ret == Type.none && body[body.length - 1].tag !== "return") {
+  if (ret == "None" && body[body.length - 1].tag !== "return") {
     body.push({ tag: "return", ret: { tag: "literal", literal: { tag: "none" } } });
   }
   return {
@@ -96,15 +100,52 @@ function traverseFunDef(c: TreeCursor, s: string): FunDef<null> {
   }
 }
 
+function traverseClassDef(c: TreeCursor, s: string): ClassDef<null> {
+  c.firstChild(); //go to class
+  c.nextSibling(); //go to name
+  const name = s.substring(c.from, c.to);
+  c.nextSibling(); //go to ArgList
+  if (c.type.name === 'ArgList') {
+    var args: Array<string> = []
+    c.firstChild(); // go into arglist
+    while (c.nextSibling()) { // find single argument in arglist
+      //@ts-ignore
+      if (c.type.name === ")")
+        break;
+      args.push(s.substring(c.from,c.to));
+      c.nextSibling();
+    }
+    c.parent(); // pop arglist
+    if(args.length > 1 || args[0] !== "object")
+      throw new Error("Base class can only be `object`");
+    c.nextSibling(); // go to body
+      
+  }
+  c.firstChild(); //go into body
+  const fields: VarDef<null>[] = [];
+  const methods: FunDef<null>[] = [];
+  while (c.nextSibling()) {
+    if (isVarDef(c, s)) {
+      fields.push(traverseVarDef(c, s));
+    } else if (isFunDef(c, s)) {
+      methods.push(traverseFunDef(c, s));
+    }
+    else throw new Error("ParseError: Illegal statement in class definition");
+  }
+  c.parent();
+  c.parent();
+  return { name, fields, methods };
+}
+
 function traverseType(c: TreeCursor, s: string): Type {
   switch (s.substring(c.from, c.to)) {
     case "int":
-      return Type.int;
+      return "int";
     case "bool":
-      return Type.bool;
+      return "bool";
     case "None":
-      return Type.none;
-    default: throw new Error("Invalid Type");
+      return "None";
+    default: return {tag:"object", class:s.substring(c.from,c.to)};
 
   }
 }
@@ -141,7 +182,17 @@ export function traverseExpr(c: TreeCursor, s: string): Expr<null> {
 
     case "CallExpression":
       c.firstChild();
-      const callName = s.substring(c.from, c.to);
+      var callName:string;
+      var callObj;
+      //@ts-ignore
+      if (c.type.name === "MemberExpression") {
+        const out = traverseExpr(c,s);
+        //@ts-ignore
+        callName = out.name; callObj = out.obj;
+
+      } else {
+        callName = s.substring(c.from, c.to);
+      }
       c.nextSibling(); // go to arglist
       const args = travesreArgs(c, s);
       c.parent(); // pop CallExpression
@@ -164,7 +215,8 @@ export function traverseExpr(c: TreeCursor, s: string): Expr<null> {
           arg2: args[1]
         };
       }
-      return { tag: "call", name: callName, args };
+      
+      return { tag: "call", name: callName, args, obj:callObj };
 
     case "UnaryExpression":
       c.firstChild();
@@ -207,6 +259,15 @@ export function traverseExpr(c: TreeCursor, s: string): Expr<null> {
       const exp = traverseExpr(c, s);
       c.parent();
       return exp;
+
+    case "MemberExpression":
+      c.firstChild(); //go to object name
+      var obj = traverseExpr(c, s);
+      c.nextSibling(); //go to .
+      c.nextSibling(); //go to name
+      const name = s.substring(c.from, c.to);
+      c.parent();
+      return { tag: "getattr", obj, name };
 
     default:
       throw new Error("ParseError: Could not parse expr at " + c.from + " " + c.to + ": " + s.substring(c.from, c.to));
@@ -328,7 +389,13 @@ export function traverseStmt(c: TreeCursor, s: string): Stmt<null> {
   switch (c.node.type.name) {
     case "AssignStatement":
       c.firstChild(); // go to name
-      const name = s.substring(c.from, c.to);
+      var lvalue:string|GetAttr<null>;
+      if (c.type.name === "MemberExpression") {
+        //@ts-ignore
+        lvalue = traverseExpr(c,s);
+      } else {
+        lvalue = s.substring(c.from, c.to);
+      }
       c.nextSibling(); // go to equals
       // if(s.substring(c.from, c.to) == "TypeDef")
       c.nextSibling(); // go to value
@@ -336,7 +403,7 @@ export function traverseStmt(c: TreeCursor, s: string): Stmt<null> {
       c.parent();
       return {
         tag: "assign",
-        name: name,
+        lvalue,
         value: value
       }
     case "ExpressionStatement":
@@ -382,6 +449,7 @@ export function traverse(c: TreeCursor, s: string): Program<null> {
       const stmts: Stmt<null>[] = [];
       const varinits: VarDef<null>[] = [];
       const fundefs: FunDef<null>[] = [];
+      const classdefs: ClassDef<null>[] = [];
       c.firstChild();
       while (true) {
         if (isVarDef(c, s)) {
@@ -389,11 +457,14 @@ export function traverse(c: TreeCursor, s: string): Program<null> {
         } else if (isFunDef(c, s)) {
           fundefs.push(traverseFunDef(c, s));
         }
+        else if (isClassDef(c, s)) {
+          classdefs.push(traverseClassDef(c, s));
+        }
         else break;
         if (c.nextSibling()) {
           continue
         } else {
-          return { varinits, fundefs, stmts };
+          return { varinits, fundefs, classdefs, stmts };
         }
       }
 
@@ -404,7 +475,7 @@ export function traverse(c: TreeCursor, s: string): Program<null> {
         stmts.push(traverseStmt(c, s));
       } while (c.nextSibling());
       console.log("traversed " + stmts.length + " statements ", stmts, "stopped at ", c.node);
-      return { varinits, fundefs, stmts };
+      return { varinits, fundefs, classdefs, stmts };
 
     default:
       throw new Error("ParseError: Could not parse program at " + c.node.from + " " + c.node.to);
