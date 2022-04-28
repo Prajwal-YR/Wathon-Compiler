@@ -77,7 +77,7 @@ function typeCheckFunDef(fundef: FunDef<null>, env: TypeEnv,): FunDef<Type> {
 
     }
     else if (lastStmt.tag !== "if" || lastStmt.elseBody.length == 0 || lastStmt.elseBody[lastStmt.elseBody.length - 1].tag !== "return") {
-      throw new Error(`All paths must have return for function ${fundef.name}`);
+      throw new TypeError(`All paths must have return for function ${fundef.name}`);
     }
 
   }

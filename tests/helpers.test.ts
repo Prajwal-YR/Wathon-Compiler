@@ -15,7 +15,7 @@ export function typeCheck(source: string): Type {
     return typedAst.stmts[typedAst.stmts.length - 1].a;
   }
   catch (err) {
-    if(err.name === 'TypeError')
+    if(err.name === 'TypeError' || err.name === 'ReferenceError')
     err.message = "TYPE ERROR: " + err.message
     throw err;
   }
