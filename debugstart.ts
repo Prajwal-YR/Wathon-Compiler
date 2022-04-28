@@ -25,20 +25,32 @@ function stringifyTree(t:TreeCursor, source: string, d:number){
 }
 var source = 
 `
-def f():
-  print(1)
-  return
-f()
+class C(object):
+    x : int = 1
+    def clear(self: C) -> C:
+        return None
+  
+c : C = None
+c = C().clear()
+c
 `
+try{
+    throw new TypeError("error")
+}
+catch(err)
+{
+    console.log(err)
+}
 var ast_lezer = parser.parse(source);
 console.log(stringifyTree(ast_lezer.cursor(),source,0));
 var ast = parse(source)
 console.log(JSON.stringify(ast,null,2))
-const ProgramEnv:TypeEnv = {vars: new Map(), funcs: new Map, retType: Type.none};
+const ProgramEnv:TypeEnv = {vars: new Map(), funcs: new Map(), classes:new Map(),  retType: "None", };
 const typedAst = typeCheckProgram(ast, ProgramEnv);
+console.log(typedAst.stmts[typedAst.stmts.length-1].a);
 console.log(JSON.stringify(typedAst,null,2))
 
-var compiled = compile(source)
-console.log(JSON.stringify(compiled,null,2))
+// var compiled = compile(source)
+// console.log(JSON.stringify(compiled,null,2))
 
 
