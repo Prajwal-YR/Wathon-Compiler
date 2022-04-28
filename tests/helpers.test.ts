@@ -9,9 +9,13 @@ export function typeCheck(source: string): Type {
     console.log(JSON.stringify(ast, null, 2))
     const ProgramEnv: TypeEnv = { vars: new Map(), funcs: new Map(), classes: new Map(), retType: "None", };
     const typedAst = typeCheckProgram(ast, ProgramEnv);
+    if (typedAst.stmts.length === 0) {
+      return "None";
+    } 
     return typedAst.stmts[typedAst.stmts.length - 1].a;
   }
   catch (err) {
+    if(err.name === 'TypeError')
     err.message = "TYPE ERROR: " + err.message
     throw err;
   }
