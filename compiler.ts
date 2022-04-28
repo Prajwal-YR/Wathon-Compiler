@@ -16,9 +16,9 @@ var labelCounter = 0;
 
 export function compile(source: string): CompileResult {
   const ast = parse(source);
-  const ProgramEnv: TypeEnv = { vars: new Map(), funcs: new Map, retType: Type.none };
+  const ProgramEnv: TypeEnv = { vars: new Map(), funcs: new Map(),classes:new Map(), retType: "None" };
   const typedAst = typeCheckProgram(ast, ProgramEnv);
-  const emptyEnv: TypeEnv = { vars: new Map(), funcs: new Map, retType: Type.none };
+  const emptyEnv: TypeEnv = { vars: new Map(), funcs: new Map(), classes:new Map(), retType: "None" };
 
   const scratchVar: string = `(local $$last i32)`;
   var globals: string[] = [];
@@ -40,7 +40,7 @@ export function compile(source: string): CompileResult {
 
 function codeGenFun(fundef: FunDef<Type>, localEnv: TypeEnv): Array<string> {
   // Construct the environment for the function body
-  const funEnv: TypeEnv = { vars: new Map(), funcs: new Map, retType: Type.none };
+  const funEnv: TypeEnv = { vars: new Map(), funcs: new Map(), classes:new Map(), retType: "None" };
   // Construct the code for params and variable declarations in the body
   fundef.inits.forEach(init => {
     funEnv.vars.set(init.name, init.type);
@@ -66,12 +66,13 @@ function codeGenStmt(stmt: Stmt<Type>, localEnv: TypeEnv, useGlobal: boolean = t
   switch (stmt.tag) {
     case "assign":
       var valStmts = codeGenExpr(stmt.value, localEnv);
-      if (localEnv.vars.has(stmt.name))
-        return valStmts.concat([`(local.set $${stmt.name})`]);
+      // TODO: Fix this
+      if (typeof stmt.lvalue==='string' && localEnv.vars.has(stmt.lvalue))
+        return valStmts.concat([`(local.set $${stmt.lvalue})`]);
 
       if (useGlobal)
-        return valStmts.concat([`(global.set $${stmt.name})`]);
-      throw new ReferenceError(`Cannot assign to variable that is not explicitly declared in this scope: \`${stmt.name}\``);
+        return valStmts.concat([`(global.set $${stmt.lvalue})`]);
+      throw new ReferenceError(`Cannot assign to variable that is not explicitly declared in this scope: \`${stmt.lvalue}\``);
 
 
     case "expr":
@@ -131,13 +132,13 @@ function codeGenExpr(expr: Expr<Type>, localEnv: TypeEnv): Array<string> {
       var funName = expr.name;
       if (funName === 'print') {
         switch (expr.arg.a) {
-          case Type.int:
+          case "int":
             funName = 'print_num'
             break;
-          case Type.bool:
+          case "bool":
             funName = 'print_bool'
             break;
-          case Type.none:
+          case "None":
             funName = 'print_none'
             break;
         }
