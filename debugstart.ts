@@ -49,16 +49,16 @@ print(r2.d)
 r3 = r1.mul(r2)
 print(r3.n)
 print(r3.d)`
-// source = `
-// class C(object):
-//     n:int = 1
-//     m:int = 10
-//     def __init__(self:C):
-//         pass
-// c:C=None
-// c=C()
-// c.n
-// `
+source = `
+class C(object):
+    n:int = 1
+    m:int = 10
+    def __init__(self:C):
+        pass
+c:C=None
+c=C(1)
+c.n
+`
 
 var ast_lezer = parser.parse(source);
 console.log(stringifyTree(ast_lezer.cursor(),source,0));

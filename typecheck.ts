@@ -97,6 +97,13 @@ export function typeCheckClassDef(classdef: ClassDef<null>, env: TypeEnv): Class
 
   const typedMethods: FunDef<Type>[] = []
   classdef.methods.forEach(method => {
+    if (method.name==='__init__') {
+      if(method.params.length !== 1)
+        throw new TypeError("Method overriden with different type signature: __init__")
+      if (typeof method.params[0].type !== 'object' || method.params[0].type.class !== classdef.name) {
+        throw new TypeError("First parameter of the following method must be of the enclosing class: __init__")
+      }
+    }
     classEnv.methods.set(method.name, [method.params.map(param => param.type), method.ret]);
   });
   env.classes.set(classdef.name, classEnv);
@@ -311,7 +318,7 @@ export function typeCheckExpr(expr: Expr<null>, env: TypeEnv): Expr<Type> {
         return { ...expr, args: typedArgs, a: retType };
       } else if (env.classes.has(expr.name)) { // Constructors
         if (expr.args.length !== 0) {
-          throw new Error(`Expected 0 arguments for ${expr.name} got ${expr.args.length}`)
+          throw new TypeError(`Expected 0 arguments for ${expr.name} got ${expr.args.length}`)
         }
         const retType: Type = { tag: "object", class: expr.name }
         return { ...expr, a: retType };
