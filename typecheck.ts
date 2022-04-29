@@ -1,4 +1,4 @@
-import { BinOp, ClassDef, Expr, FunDef, Literal, Program, Stmt, Type, TypedVar, UniOp, VarDef } from "./ast";
+import { BinOp, ClassDef, Expr, FunDef, GetAttr, Literal, Program, Stmt, Type, TypedVar, UniOp, VarDef } from "./ast";
 
 export type TypeEnv = {
   vars: Map<string, Type>,
@@ -44,6 +44,9 @@ export function typeCheckVarInits(inits: VarDef<null>[], vars: Map<string, Type>
     if (!checkAssign(init.type, initType.a, classes)) {
       throw new TypeError(`Expected type \`${init.type}\`; got type \`${initType.a}\``);
 
+    }
+    if (vars.has(init.name)) {
+      throw new TypeError(`Duplicate declaration for \`${init.name}\``)
     }
     vars.set(init.name, init.type);
     typedInits.push({ ...init, a: init.type, init: initType });
@@ -141,22 +144,25 @@ export function typeCheckStmts(stmts: Stmt<null>[], env: TypeEnv): Stmt<Type>[] 
           if (!checkAssign(expectedType, typedValue.a, env.classes)) {
             throw new TypeError(`Expected type \`${expectedType}\`; got type \`${typedValue.a}\``);
           }
+          typedStmts.push({ ...stmt, value:typedValue, a: "None" })
         }
         else {
           const typedValue = typeCheckExpr(stmt.value, env);
-          const expectedType = typeCheckExpr(stmt.lvalue, env);
+          //@ts-ignore
+          const expectedType:GetAttr<Type> = typeCheckExpr(stmt.lvalue, env);
           if (!checkAssign(expectedType.a, typedValue.a, env.classes)) {
             throw new TypeError(`Expected type \`${expectedType.a}\`; got type \`${typedValue.a}\``);
           }
+          typedStmts.push({ ...stmt, lvalue:expectedType, value:typedValue, a: "None" })
         }
-        typedStmts.push({ ...stmt, a: "None" })
+        
         break;
       case "return":
         const typedRet = typeCheckExpr(stmt.ret, env);
         if (!checkAssign(env.retType, typedRet.a, env.classes)) {
           throw new TypeError(`Expected type \`${env.retType}\`; got type \`${typedRet.a}\``);
         }
-        typedStmts.push({ ...stmt, a: "None" });
+        typedStmts.push({ ...stmt, ret:typedRet, a: "None" });
         break;
       case "pass":
         typedStmts.push({ ...stmt, a: "None" });
@@ -217,7 +223,7 @@ export function typeCheckExpr(expr: Expr<null>, env: TypeEnv): Expr<Type> {
         throw new ReferenceError(`\`${expr.name}\` is not a member of class \`${obj.a.class}\``);
       }
       const fieldType = classData.fields.get(expr.name);
-      return { ...expr, a: fieldType }
+      return { ...expr, obj, a: fieldType }
 
 
     case "builtin1":
@@ -292,7 +298,7 @@ export function typeCheckExpr(expr: Expr<null>, env: TypeEnv): Expr<Type> {
       const lit = typeCheckLiteral(expr.literal)
       return { ...expr, a: lit.a };
     case "call":
-      if (env.funcs.has(expr.name)) {
+      if (env.funcs.has(expr.name)) { //Functions
         const typedArgs = expr.args.map((arg) => typeCheckExpr(arg, env));
         const [actualArgs, retType] = env.funcs.get(expr.name)
         if (actualArgs.length !== typedArgs.length)
@@ -303,7 +309,7 @@ export function typeCheckExpr(expr: Expr<null>, env: TypeEnv): Expr<Type> {
               throw new TypeError(`Expected type \`${actualArgs[index]}\`; got type \`${typedArgs[index].a}\` for parameter ${index}`);
         }
         return { ...expr, args: typedArgs, a: retType };
-      } else if (env.classes.has(expr.name)) {
+      } else if (env.classes.has(expr.name)) { // Constructors
         if (expr.args.length !== 0) {
           throw new Error(`Expected 0 arguments for ${expr.name} got ${expr.args.length}`)
         }
@@ -311,7 +317,7 @@ export function typeCheckExpr(expr: Expr<null>, env: TypeEnv): Expr<Type> {
         return { ...expr, a: retType };
 
       }
-      else if (expr.obj) {
+      else if (expr.obj) { // Methods
         const obj = typeCheckExpr(expr.obj, env);
         if (typeof obj.a !== "object" || obj.a.tag !== 'object') {
           throw new ReferenceError("Not an object");
@@ -328,7 +334,7 @@ export function typeCheckExpr(expr: Expr<null>, env: TypeEnv): Expr<Type> {
           if (!checkAssign(actualArgs[index + 1], typedArgs[index].a, env.classes))
             throw new TypeError(`Expected type \`${actualArgs[index + 1]}\`; got type \`${typedArgs[index].a}\` for parameter ${index}`);
         }
-        return { ...expr, args: typedArgs, a: retType };
+        return { ...expr, args: typedArgs, obj, a: retType, };
 
       } else {
         throw new ReferenceError(`Not a Function or Class \`${expr.name}\``);

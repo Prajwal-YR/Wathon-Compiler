@@ -44,6 +44,7 @@ export async function run(source: string, config: any): Promise<number> {
     (func $max (import "imports" "max") (param i32 i32) (result i32))
     (func $min (import "imports" "min") (param i32 i32) (result i32))
     (func $pow (import "imports" "pow") (param i32 i32) (result i32))
+    (memory (export "memory") 1)
     ${compiled.globals}
     (func (export "exported_func") ${returnType}
       ${compiled.wasmSource}
@@ -55,5 +56,6 @@ export async function run(source: string, config: any): Promise<number> {
   var asBinary = myModule.toBinary({});
   var wasmModule = await WebAssembly.instantiate(asBinary.buffer, importObject);
   const result = (wasmModule.instance.exports.exported_func as any)();
+  console.log("Memory",wasmModule.instance.exports.memory);
   return result;
 }
