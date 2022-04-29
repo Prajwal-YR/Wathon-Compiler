@@ -55,9 +55,10 @@ class C(object):
     m:int = 10
     def __init__(self:C):
         pass
+    def get_n(self:C)->int:
+        return self.n
 c:C=None
-c=C(1)
-c.n
+c.get_n()
 `
 
 var ast_lezer = parser.parse(source);

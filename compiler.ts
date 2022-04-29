@@ -227,10 +227,10 @@ function codeGenExpr(expr: Expr<Type>, localEnv: TypeEnv): Array<string> {
       if (expr.obj) {
         const obj = codeGenExpr(expr.obj, localEnv);
         return [...obj, 
-        //   `(i32.eqz)`,
-        // `(if
-        //     (then  (i32.const 1) (i32.const 0) (i32.div_s) (local.set $$last)))`,
-        // ...obj, 
+          `(tee_local $$last)`, `(i32.eqz)`,
+          `(if
+          (then  (i32.const 1) (i32.const 0) (i32.div_s) local.set $$last))`,
+          `(get_local $$last)`, 
         ...argsStmts,
         //@ts-ignore
          `(call $${expr.obj.a.class}$${expr.name})`];
@@ -245,9 +245,12 @@ function codeGenExpr(expr: Expr<Type>, localEnv: TypeEnv): Array<string> {
       //@ts-ignore
       const classData = localEnv.classes.get(expr.obj.a.class);
       const i = Array.from(classData.fields.keys()).indexOf(expr.name)
-      return [...obj, `(i32.eqz)`,
+      return [...obj, 
+        `(tee_local $$last)`, `(i32.eqz)`,
         `(if
-        (then  (i32.const 1) (i32.const 0) (i32.div_s) local.set $$last))`,...obj, `(i32.add (i32.const ${i * 4}))`, `(i32.load)`];
+        (then  (i32.const 1) (i32.const 0) (i32.div_s) local.set $$last))`,
+        `(get_local $$last)`,
+         `(i32.add (i32.const ${i * 4}))`, `(i32.load)`];
     // return [`(i32.eqz)`,
     //   `(if
     //     (then (i32.div_s (i32.const 1) (i32.const 0))))`,];
