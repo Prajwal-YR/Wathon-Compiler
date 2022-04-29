@@ -24,7 +24,17 @@ export function typeCheck(source: string): Type {
 // Modify run to use `importObject` (imported above) to use for printing
 export async function run(source: string) {
   const config = { importObject };
+  try{
   await runner(source, config);
+  }
+  catch(err){
+    if (err.name === 'RuntimeError') {
+      // err.message = "RUNTIME ERROR:" + err.message;
+      // throw err;
+      throw new Error("RUNTIME ERROR: Nullpointer Exception");
+      
+    }
+  }
   return;
 }
 

@@ -51,9 +51,9 @@ export function compile(source: string): CompileResult {
       ` (local $$last i32)`,
       ...initvals,
       ` (global.get $heap)`,
-      init_present?` (local.set $$last (global.get $heap)) `:``,
-      ` (global.set $heap (i32.add (global.get $heap) (i32.const ${c.fields.length*4})))`,
-      init_present?` call $${c.name}$__init__\n (local.get $$last)`:``,
+      init_present ? ` (local.set $$last (global.get $heap)) ` : ``,
+      ` (global.set $heap (i32.add (global.get $heap) (i32.const ${c.fields.length * 4})))`,
+      init_present ? ` call $${c.name}$__init__\n (local.get $$last)` : ``,
       ` return
       )`
     ];
@@ -62,13 +62,13 @@ export function compile(source: string): CompileResult {
     globals.push(`(global $${v.name} (mut i32) ${resolveLiteral(v.init)})`);
   });
 
-  
+
 
   typedAst.fundefs.forEach((f) => {
     globals = globals.concat(codeGenFun(f, emptyEnv));
   });
 
-  
+
   const commandGroups = typedAst.stmts.map(stmt => codeGenStmt(stmt, emptyEnv));
   const commands = [].concat.apply([scratchVar], commandGroups);
   console.log("Generated: ", commands.join("\n"));
@@ -111,14 +111,14 @@ function codeGenStmt(stmt: Stmt<Type>, localEnv: TypeEnv, useGlobal: boolean = t
       if (typeof stmt.lvalue === 'string' && localEnv.vars.has(stmt.lvalue))
         return valStmts.concat([`(local.set $${stmt.lvalue})`]);
       if (typeof stmt.lvalue === 'object') {
-        const obj = codeGenExpr(stmt.lvalue.obj,localEnv);
+        const obj = codeGenExpr(stmt.lvalue.obj, localEnv);
         //@ts-ignore
         const classData = localEnv.classes.get(stmt.lvalue.obj.a.class);
         const i = Array.from(classData.fields.keys()).indexOf(stmt.lvalue.name)
-      return [...obj, `(i32.add (i32.const ${i*4}))`,...valStmts, `(i32.store)`];
+        return [...obj, `(i32.add (i32.const ${i * 4}))`, ...valStmts, `(i32.store)`];
         // return valStmts.concat([...lvalue,`i32.store`]);
       }
-      if (useGlobal && typeof stmt.lvalue==='string')
+      if (useGlobal && typeof stmt.lvalue === 'string')
         return valStmts.concat([`(global.set $${stmt.lvalue})`]);
       throw new ReferenceError(`Cannot assign to variable that is not explicitly declared in this scope: \`${stmt.lvalue}\``);
 
@@ -226,18 +226,34 @@ function codeGenExpr(expr: Expr<Type>, localEnv: TypeEnv): Array<string> {
       const argsStmts = expr.args.map((arg) => codeGenExpr(arg, localEnv)).flat();
       if (expr.obj) {
         const obj = codeGenExpr(expr.obj, localEnv);
+        return [...obj, 
+        //   `(i32.eqz)`,
+        // `(if
+        //     (then  (i32.const 1) (i32.const 0) (i32.div_s) (local.set $$last)))`,
+        // ...obj, 
+        ...argsStmts,
         //@ts-ignore
-        return[...obj,...argsStmts, `(call $${expr.obj.a.class}$${expr.name})`];
+         `(call $${expr.obj.a.class}$${expr.name})`];
+        
+
       }
       return [...argsStmts, `(call $${expr.name})`];
 
     case "getattr":
       const obj = codeGenExpr(expr.obj, localEnv);
-      
+
       //@ts-ignore
       const classData = localEnv.classes.get(expr.obj.a.class);
       const i = Array.from(classData.fields.keys()).indexOf(expr.name)
-      return [...obj, `(i32.add (i32.const ${i*4}))`, `(i32.load)`];
+      return [...obj, `(i32.eqz)`,
+        `(if
+        (then  (i32.const 1) (i32.const 0) (i32.div_s) local.set $$last))`,...obj, `(i32.add (i32.const ${i * 4}))`, `(i32.load)`];
+    // return [`(i32.eqz)`,
+    //   `(if
+    //     (then (i32.div_s (i32.const 1) (i32.const 0))))`,];
+    // return [...condStmts,
+    //   `(if
+    //     (then`, ...bodyStmts, `)`, `)`];
 
   }
 }
