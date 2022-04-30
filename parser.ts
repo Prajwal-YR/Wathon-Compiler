@@ -92,6 +92,9 @@ function traverseFunDef(c: TreeCursor, s: string): FunDef<null> {
   }
   c.parent();      // Pop to Body
   c.parent();      // Pop to FunctionDefinition
+  if (body.length===0) {
+    throw new Error("ParseError: Empty function body for "+name);    
+  }
   if (ret == "None" && body[body.length - 1].tag !== "return") {
     body.push({ tag: "return", ret: { tag: "literal", literal: { tag: "none" } } });
   }

@@ -98,7 +98,7 @@ export function typeCheckClassDef(classdef: ClassDef<null>, env: TypeEnv): Class
   const typedMethods: FunDef<Type>[] = []
   classdef.methods.forEach(method => {
     if (method.name==='__init__') {
-      if(method.params.length !== 1)
+      if(method.params.length !== 1 ||method.ret !== "None")
         throw new TypeError("Method overriden with different type signature: __init__")
       if (typeof method.params[0].type !== 'object' || method.params[0].type.class !== classdef.name) {
         throw new TypeError("First parameter of the following method must be of the enclosing class: __init__")

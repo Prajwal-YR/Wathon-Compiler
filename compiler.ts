@@ -1,10 +1,8 @@
-import { ObjectFlags } from "typescript";
 import { Stmt, Expr, BinOp, Type, FunDef, Literal, UniOp } from "./ast";
 import { parse } from "./parser";
 import { typeCheckProgram, TypeEnv } from "./typecheck";
 
 // https://learnxinyminutes.com/docs/wasm/
-
 
 
 type CompileResult = {
@@ -107,7 +105,7 @@ function codeGenStmt(stmt: Stmt<Type>, localEnv: TypeEnv, useGlobal: boolean = t
   switch (stmt.tag) {
     case "assign":
       var valStmts = codeGenExpr(stmt.value, localEnv);
-      // TODO: Fix this
+
       if (typeof stmt.lvalue === 'string' && localEnv.vars.has(stmt.lvalue))
         return valStmts.concat([`(local.set $${stmt.lvalue})`]);
       if (typeof stmt.lvalue === 'object') {
@@ -229,7 +227,7 @@ function codeGenExpr(expr: Expr<Type>, localEnv: TypeEnv): Array<string> {
         return [...obj, 
           `(tee_local $$last)`, `(i32.eqz)`,
           `(if
-          (then  (i32.const 1) (i32.const 0) (i32.div_s) local.set $$last))`,
+          (then  (i32.const -1) (i32.load) local.set $$last))`,
           `(get_local $$last)`, 
         ...argsStmts,
         //@ts-ignore
@@ -248,15 +246,9 @@ function codeGenExpr(expr: Expr<Type>, localEnv: TypeEnv): Array<string> {
       return [...obj, 
         `(tee_local $$last)`, `(i32.eqz)`,
         `(if
-        (then  (i32.const 1) (i32.const 0) (i32.div_s) local.set $$last))`,
+        (then  (i32.const -1) (i32.load) local.set $$last))`,
         `(get_local $$last)`,
          `(i32.add (i32.const ${i * 4}))`, `(i32.load)`];
-    // return [`(i32.eqz)`,
-    //   `(if
-    //     (then (i32.div_s (i32.const 1) (i32.const 0))))`,];
-    // return [...condStmts,
-    //   `(if
-    //     (then`, ...bodyStmts, `)`, `)`];
 
   }
 }
