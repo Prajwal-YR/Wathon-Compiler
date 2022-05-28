@@ -49,7 +49,7 @@ describe('traverseStmt(c, s) function', () => {
 
 
     // Note: we have to use deep equality when comparing objects
-    expect(parsedStmt).to.deep.equal({ tag: "assign", name: "x", value });
+    expect(parsedStmt).to.deep.equal({ tag: "assign", lvalue: "x", value });
   })
 });
 
@@ -65,13 +65,14 @@ describe('traverse(c, s) function', () => {
     const source = "x:int=2\nx+2"
     const t = parser.parse(source);
     const parsed = traverse(t.cursor(), source);
-    var actual: Program<null> = {varinits:[],fundefs:[], stmts:[]};
+    var actual: Program<null> = {varinits:[],fundefs:[], stmts:[], classdefs:[]};
     const sources = source.split('\n');
     sources.forEach(s => {
       const t = parser.parse(s);
       const out = traverse(t.cursor(),s);
       actual.varinits = [...actual.varinits, ...out.varinits];
       actual.fundefs = [...actual.fundefs, ...out.fundefs];
+      actual.classdefs = [...actual.classdefs, ...out.classdefs];
       actual.stmts = [...actual.stmts, ...out.stmts];
     })
     expect(parsed).to.deep.equal(actual);

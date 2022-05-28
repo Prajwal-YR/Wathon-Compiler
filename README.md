@@ -10,7 +10,7 @@ Literals can be one of ```bool, int``` or ```None``` type.
 
 * None value is a separate datatype in python. We use ```{tag:"none}``` to represent None in typescript and ```i32.const 0``` in WASM.
 
-Therefore, in WASM the represnetation for integer **0**, boolean **False** and **None** is the same. In Typescript we use enum Type to distinguish them. The attribute ```a``` is used to set the type of any expression. For boolean values it is set to ```Type.bool```. This is utilised in calling the appropriate print function as shown in the code snippet. The ```print_bool``` function displays _False_ if the argument value is 0 else displays _True_.
+Therefore, in WASM the represnetation for integer **0**, boolean **False** and **None** is the same. In Typescript we use enum Type to distinguish them. The attribute ```a``` is used to set the type of any expression. For boolean values it is set to ```"bool"```. This is utilised in calling the appropriate print function as shown in the code snippet. The ```print_bool``` function displays _False_ if the argument value is 0 else displays _True_.
 
 **Code snippet from ast.ts**
 ```typescript
@@ -29,13 +29,13 @@ case "builtin1":
     var funName = expr.name;
     if (funName === 'print') {
         switch (expr.arg.a) {
-        case Type.int:
+        case "int":
             funName = 'print_num'
             break;
-        case Type.bool:
+        case "bool":
             funName = 'print_bool'
             break;
-        case Type.none:
+        case "None":
             funName = 'print_none'
             break;
         }
@@ -177,7 +177,7 @@ var globals:string[] = [];
 
 function codeGenFun(fundef: FunDef<Type>, localEnv:TypeEnv): Array<string> {
   // Construct the environment for the function body
-  const funEnv:TypeEnv = { vars: new Map(), funcs: new Map, retType: Type.none };
+  const funEnv:TypeEnv = { vars: new Map(), funcs: new Map, retType: "None" };
   // Construct the code for params and variable declarations in the body
   fundef.inits.forEach(init => {
     funEnv.vars.set(init.name,init.type);
@@ -314,33 +314,33 @@ function typeCheckExpr(expr: Expr<null>, env: TypeEnv): Expr<Type> {
         case BinOp.Mul:
         case BinOp.Div:
         case BinOp.Mod:
-          if (left.a !== Type.int || right.a !== Type.int) {
+          if (left.a !== "int" || right.a !== "int") {
             throw new TypeError(`Cannot apply operator \`${expr.op}
             \` on types \`${left.a}\` and \`${right.a}\``)
           }
-          return { ...expr, left, right, a: Type.int }
+          return { ...expr, left, right, a: "int" }
         case BinOp.Lesser:
         case BinOp.LessEq:
         case BinOp.GreatEq:
         case BinOp.Greater:
-          if (left.a !== Type.int || right.a !== Type.int) {
+          if (left.a !== "int" || right.a !== "int") {
             throw new TypeError(`Cannot apply operator \`${expr.op}
             \` on types \`${left.a}\` and \`${right.a}\``)
           }
-          return { ...expr, left, right, a: Type.bool }
+          return { ...expr, left, right, a: "bool" }
         case BinOp.Equals:
         case BinOp.NotEquals:
-          if (left.a !== right.a || right.a === Type.none) {
+          if (left.a !== right.a || right.a === "None") {
             throw new TypeError(`Cannot apply operator \`${expr.op}
             \` on types \`${left.a}\` and \`${right.a}\``)
           }
-          return { ...expr, left, right, a: Type.bool }
+          return { ...expr, left, right, a: "bool" }
         case BinOp.Is:
-          if (left.a !== Type.none || right.a !== Type.none) {
+          if (left.a !== "None" || right.a !== "None") {
             throw new TypeError(`Cannot apply operator \`${expr.op}
             \` on types \`${left.a}\` and \`${right.a}\``)
           }
-          return { ...expr, left, right, a: Type.bool }
+          return { ...expr, left, right, a: "bool" }
       }
       break;
       ...
